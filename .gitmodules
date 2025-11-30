@@ -1,0 +1,3 @@
+[submodule "extremism"]
+	path = extremism
+	url = https://github.com/humanlab/extremism.git
