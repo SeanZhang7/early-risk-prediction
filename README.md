@@ -357,3 +357,59 @@ User level performance:
 ![image.png](Early-Risk-Prediction-Log/image%2019.png)
 
 ![image.png](Early-Risk-Prediction-Log/image%2020.png)
+
+# Reproduce
+
+## Get code
+
+```jsx
+git clone https://github.com/SeanZhang7/early-risk-prediction.git
+
+cd early-risk-prediction
+```
+
+## Environment
+
+Run 
+
+```jsx
+conda env create -f environment.yaml
+conda activate early-risk-prediction
+
+```
+
+## Data Processing
+
+You can go to 
+
+```jsx
+data-processing.ipynb
+Develop/merge_data.ipynb
+```
+
+and run all the cells in them.
+
+Or just run 
+
+```jsx
+python data-processing-script.py
+```
+
+## BaseLine Results
+
+Run all the cells in
+
+```jsx
+BaseLines/Cos_sim_BaseLine.ipynb
+BaseLines/LSM_BaseLine.ipynb
+BaseLines/PHQ9_BaseLine.ipynb
+BaseLines/RE_BaseLine.ipynb
+```
+
+## Final Results
+
+Run all the cell in 
+
+```jsx
+Develop/Final_model.ipynb
+```

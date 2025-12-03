@@ -1,0 +1,17 @@
+name: early-risk-prediction
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - pandas==2.3.3
+      - numpy==2.3.3
+      - scikit-learn==1.7.2
+      - matplotlib==3.10.7
+      - seaborn==0.13.2
+      - optuna==4.6.0
+      - torch==2.5.1+cu121
+      - torchvision>=0.15.0
+      - torchaudio>=2.0.0
+      - transformers==4.57.1
+      - sentence-transformers==5.1.2
+      - tqdm>=4.65.0
