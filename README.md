@@ -380,6 +380,8 @@ conda activate early-risk-prediction
 
 ## Data Processing
 
+First, get access to eRisk 2025 shared tast 2's dataset, download it into /early-risk-prediction.
+
 You can go to 
 
 ```jsx
