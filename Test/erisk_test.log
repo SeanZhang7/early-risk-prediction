@@ -12820,3 +12820,10 @@ IndexError: Dimension out of range (expected to be in range of [-1, 0], but got 
 2026-02-01 21:53:22,470 - INFO - Integrated feature extractor initialized
 2026-02-01 21:53:22,470 - INFO - Total feature dimensions: 105
 2026-02-01 21:53:22,470 - INFO - FeatureExtractor initialized with 105 dimensions
+2026-02-02 12:44:21,863 - WARNING - LIWC module not found, using fallback implementation
+2026-02-02 12:44:21,864 - INFO - FeatureExtractor initialized with 99 dimensions (using original features)
+2026-02-02 12:44:21,864 - WARNING - 使用零特征矩阵，真实系统需要实现99维特征提取
+2026-02-02 12:44:56,796 - WARNING - LIWC module not found, using fallback implementation
+2026-02-02 12:44:56,797 - INFO - FeatureExtractor initialized with 99 dimensions (using original features)
+2026-02-02 12:44:56,797 - WARNING - 使用零特征矩阵，真实系统需要实现99维特征提取
+2026-02-02 12:44:56,797 - WARNING - 使用零特征矩阵，真实系统需要实现99维特征提取

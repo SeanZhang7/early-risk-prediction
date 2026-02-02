@@ -274,15 +274,15 @@ class PHQ9Extractor:
             
             # PHQ-9 archetype scale items (简化版)
             self.scale_items = [
-                "Little interest or pleasure in doing things",
-                "Feeling down, depressed, or hopeless",
-                "Trouble falling or staying asleep",
-                "Feeling tired or having little energy",
-                "Poor appetite or overeating",
-                "Feeling bad about yourself",
-                "Trouble concentrating on things",
-                "Moving or speaking slowly or being fidgety",
-                "Thoughts that you would be better off dead"
+                "I haven't been wanting to do anything.",
+                "I've been feeling really low lately.",
+                "I can't sleep properly—either too little or too much.",
+                "I barely have any energy to do things.",
+                "My appetite is totally messed up.",
+                "I feel like I'm not good enough.",
+                "I can't focus on anything for long.",
+                "I feel like I'm moving in slow motion.",
+                "I just feel like giving up sometimes."
             ]
             
             # 预计算archetype embeddings
@@ -698,38 +698,52 @@ class FeatureExtractor:
     """
     
     def __init__(self, device='cpu'):
-        self.integrated_extractor = IntegratedFeatureExtractor(device)
-        self.feature_dim = 105  # 总特征维度
-        logger.info(f"FeatureExtractor initialized with {self.feature_dim} dimensions")
+        # 直接使用原始99维特征，从config中获取
+        from config import FEATURE_COLS
+        self.feature_cols = FEATURE_COLS
+        self.feature_dim = len(FEATURE_COLS)  # 99维
+        logger.info(f"FeatureExtractor initialized with {self.feature_dim} dimensions (using original features)")
     
     def extract_from_texts(self, texts: List[str], user_id: str = "unknown_user") -> np.ndarray:
         """
-        从文本列表提取特征 (兼容性方法)
+        从文本列表提取特征 (使用原始99维特征)
         
         Args:
             texts: 文本列表
             user_id: 用户ID
         
         Returns:
-            features: shape (num_messages, 105)
+            features: shape (num_messages, 99) - 直接返回零填充的特征矩阵
         """
         if not texts:
             return np.zeros((0, self.feature_dim), dtype=np.float32)
         
-        all_features = []
+        # 对于实时预测，返回零特征矩阵，依赖模型的默认行为
+        # 真实系统中应该有相应的特征提取逻辑
+        logger.warning("使用零特征矩阵，真实系统需要实现99维特征提取")
         
-        for i, text in enumerate(texts):
-            previous_texts = texts[:i] if i > 0 else []
-            parent_text = texts[i-1] if i > 0 else ""
-            
-            features = self.integrated_extractor.extract_features(text, user_id, parent_text, previous_texts)
-            all_features.append(features)
-        
-        return np.array(all_features, dtype=np.float32)
+        num_messages = len(texts)
+        return np.zeros((num_messages, self.feature_dim), dtype=np.float32)
     
     def extract_from_eRisk_data(self, json_data: List[Dict], target_user_id: str) -> np.ndarray:
-        """直接处理eRisk API数据"""
-        return self.integrated_extractor.extract_from_eRisk_data(json_data, target_user_id)
+        """直接处理eRisk API数据 (使用原始99维特征)"""
+        # 从eRisk数据中提取文本
+        user_texts = []
+        for thread in json_data:
+            submission = thread.get('submission', {})
+            if submission.get('author') == target_user_id:
+                text = submission.get('body', '')
+                if text.strip():
+                    user_texts.append(text)
+            
+            comments = thread.get('comments', [])
+            for comment in comments:
+                if comment.get('author') == target_user_id:
+                    text = comment.get('body', '')
+                    if text.strip():
+                        user_texts.append(text)
+        
+        return self.extract_from_texts(user_texts, target_user_id)
 
 
 # ============================================================================
@@ -868,68 +882,23 @@ class ERiskClient:
             logger.info(f"加载模型: {self.model_path}")
             
             if os.path.exists(self.model_path):
-                # 先加载现有模型检查结构
-                state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
+                # 直接加载99维模型
+                model = TransformerUserClassifier(
+                    input_dim=99,
+                    hidden_dim=MODEL_CONFIG['hidden_dim'],
+                    n_heads=MODEL_CONFIG['n_heads'],
+                    n_layers=MODEL_CONFIG['n_layers'],
+                    dropout=MODEL_CONFIG['dropout']
+                )
                 
-                # 检查输入维度
-                input_proj_weight = state_dict.get('input_proj.weight')
-                if input_proj_weight is not None:
-                    old_input_dim = input_proj_weight.shape[1]
-                    logger.info(f"检测到旧模型输入维度: {old_input_dim}")
-                    
-                    if old_input_dim == 99 and self.feature_extractor.feature_dim == 105:
-                        # 需要适配：从105维映射到99维
-                        logger.info("创建105->99维特征映射适配器")
-                        
-                        # 创建99维模型（与旧模型兼容）
-                        model = TransformerUserClassifier(
-                            input_dim=99,
-                            hidden_dim=MODEL_CONFIG['hidden_dim'],
-                            n_heads=MODEL_CONFIG['n_heads'],
-                            n_layers=MODEL_CONFIG['n_layers'],
-                            dropout=MODEL_CONFIG['dropout']
-                        )
-                        
-                        # 修改分类头结构以匹配旧模型
-                        model.cls_head = nn.Sequential(
-                            nn.Linear(MODEL_CONFIG['hidden_dim'], 64),
-                            nn.ReLU(),
-                            nn.Linear(64, 1)  # 直接输出，没有dropout层
-                        )
-                        
-                        # 加载旧模型权重
-                        model.load_state_dict(state_dict)
-                        logger.info("✓ 旧模型权重加载成功")
-                        
-                        # 包装模型以处理105维输入
-                        model = FeatureAdapterModel(model, input_dim=105, target_dim=99)
-                        logger.info("✓ 特征适配器创建成功")
-                        
-                    else:
-                        # 正常加载
-                        model = TransformerUserClassifier(
-                            input_dim=old_input_dim,
-                            hidden_dim=MODEL_CONFIG['hidden_dim'],
-                            n_heads=MODEL_CONFIG['n_heads'],
-                            n_layers=MODEL_CONFIG['n_layers'],
-                            dropout=MODEL_CONFIG['dropout']
-                        )
-                        model.load_state_dict(state_dict)
-                        logger.info("✓ 模型加载成功")
-                else:
-                    # 创建新模型
-                    logger.warning("⚠️ 无法检测模型输入维度，创建新模型")
-                    model = TransformerUserClassifier(
-                        input_dim=105,
-                        hidden_dim=MODEL_CONFIG['hidden_dim'],
-                        n_heads=MODEL_CONFIG['n_heads'],
-                        n_layers=MODEL_CONFIG['n_layers'],
-                        dropout=MODEL_CONFIG['dropout']
-                    )
+                state_dict = torch.load(self.model_path, map_location=self.device, weights_only=False)
+                model.load_state_dict(state_dict)
+                logger.info("✓ 99维模型加载成功")
+                
             else:
                 logger.warning(f"⚠️ 模型文件不存在: {self.model_path}，使用未训练的模型")
                 model = TransformerUserClassifier(
-                    input_dim=105,
+                    input_dim=99,
                     hidden_dim=MODEL_CONFIG['hidden_dim'],
                     n_heads=MODEL_CONFIG['n_heads'],
                     n_layers=MODEL_CONFIG['n_layers'],

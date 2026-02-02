@@ -35,7 +35,7 @@ MODEL_PATH = "best_model.pt"
 
 # Transformer模型参数（需与Final_model.ipynb保持一致）
 MODEL_CONFIG = {
-    'input_dim': 105,                 # ⭐ 更新: 现在包含余弦相似度特征 (PHQ9:31 + LSM:60 + RE:6 + CosSim:6 + Other:2)
+    'input_dim': 99,                  # 使用原始99维特征 (与final_training_dataset.pickle一致)
     'hidden_dim': 256,                # 隐层维度
     'n_heads': 4,                     # 注意力头数
     'n_layers': 3,                    # 编码层数

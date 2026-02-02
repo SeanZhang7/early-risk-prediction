@@ -36,7 +36,7 @@ def test_feature_extraction():
     print(f"✅ 特征提取完成 - Shape: {features.shape}")
     
     # 验证特征
-    assert features.shape == (3, 105), f"期望形状(3, 105)，得到{features.shape}"
+    assert features.shape == (3, 99), f"期望形状(3, 99)，得到{features.shape}"
     assert not np.isnan(features).any(), "特征中包含NaN"
     assert np.isfinite(features).all(), "特征中包含无限值"
     
