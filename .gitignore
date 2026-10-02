@@ -1,0 +1,38 @@
+# Python / Jupyter caches
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# Shell and tool config (this directory doubles as $HOME)
+/.bash_history
+/.bashrc
+/.config/
+/.local/
+/.jupyter/
+
+# Data and generated artifacts
+/Data/
+/Results/
+/Features/
+/models/
+/nltk_data/
+/liwc_script_output/
+*.pt
+*.pkl
+*.pickle
+*.csv
+
+# Backups and logs
+*.bak*
+*.backup
+*.log
+
+# LIWC scripts (liwc.py is a large dictionary-derived file)
+/liwc.py
+/liwc_script.py
+
+# Secrets
+.env
+
+# Test folder contains hardcoded team tokens and model files
+/Test/
