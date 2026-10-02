@@ -1,3 +1,4 @@
 [submodule "extremism"]
 	path = extremism
-	url = https://github.com/humanlab/extremism.git
+	url = https://github.com/SeanZhang7/extremism.git
+	branch = my-changes
