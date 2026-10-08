@@ -46,8 +46,8 @@ pip install -r requirements.txt          # install the CUDA build of torch that 
 git submodule update --init              # extremism/ : PHQ-9 item scoring
 ```
 
-- **PHQ-9 scoring** uses the `extremism` submodule (our fork, branch `my-changes`). The pipeline relies on one local fix in
-  `extremism/item-scoring/item_scoring.py` (`--scale` defaults to `['all']` when omitted) that is not yet pushed to the fork.
+- **PHQ-9 scoring** uses the `extremism` submodule (our fork, branch `my-changes`, which includes a fix to
+  `item-scoring/item_scoring.py`: `--scale` defaults to `['all']` when omitted).
 - **LIWC**: `liwc.py` and `liwc_script.py` are not tracked (dictionary-derived, licence restrictions). Put them in this
   directory; `liwc_script.py` is called by `post_features.run_liwc`. NLTK data goes to `nltk_data/` (`NLTK_DATA`).
 - Two GPUs were used (RTX 4090); one is enough, the adapter fine-tuning needs about 3.4 GB.

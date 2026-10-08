@@ -642,7 +642,7 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 3. **Single split.** The main tables (Sections 1–9 and 10.1–10.4) use one train/test split. Section 10.5 repeats the key comparisons with 5×3 cross-validation over all 891 users; its results are the ones to rely on, and they are lower than the single-split test results.
 4. **Topic/community shortcuts.** Parent-rate features (`par_*`) may reflect the community rather than the user's own state; they are excluded from the recommended configuration, but PHQ itself may also contain topic information.
 5. **Posting-volume difference** between depressed and control users (median 508 vs 237 posts, training set) still leaves a partial shortcut for `post_index` and length-related features; the ablation shows that removing `post_index` does not change the metrics, which suggests a weak dependence but does not exclude it.
-6. **External dependency.** The PHQ features depend on the `extremism` repository (forked; the change to `item_scoring.py` has not yet been committed or pushed to the fork).
+6. **External dependency.** The PHQ features depend on the `extremism` repository (our fork, branch `my-changes`, which contains the fix to `item_scoring.py`).
 7. **The fine-tuned MentalRoBERTa baseline is a single adapter run** with untuned hyper-parameters and post-level training; its variance and the benefit of tuning or of end-to-end user-level fine-tuning are unknown.
 8. **Repository hygiene.** The online client directory `Test/` contains a plaintext token (git-ignored but still in the git history; it must be cleaned before the repository is made public).
 
