@@ -1,0 +1,16 @@
+# Versions used for the reported results (Python 3.12, CUDA 12.1 build of PyTorch)
+numpy==2.3.3
+pandas==2.3.3
+scipy==1.16.3
+scikit-learn==1.8.0
+torch==2.5.1
+transformers==4.51.3
+adapters==1.2.0
+sentence-transformers==5.1.2
+nltk==3.9.2
+tqdm==4.67.1
+matplotlib==3.10.7
+# only for docs/export_pdf.py
+PyMuPDF==1.26.6
+markdown-it-py==4.0.0
+Pillow==11.3.0

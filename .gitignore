@@ -21,11 +21,16 @@ __pycache__/
 *.pkl
 *.pickle
 *.csv
+!/splits/user_split.csv
+!/docs/figures/*.csv
 
 # Backups and logs
 *.bak*
 *.backup
 *.log
+
+# Superseded files moved aside before deletion (same relative paths as the originals)
+/Archive/
 
 # LIWC scripts (liwc.py is a large dictionary-derived file)
 /liwc.py
@@ -36,3 +41,8 @@ __pycache__/
 
 # Test folder contains hardcoded team tokens and model files
 /Test/
+
+# local experiments
+/data-processing-copy.ipynb
+/docs/SYSTEM_REPORT.md
+/docs/SYSTEM_REPORT_EN.html
