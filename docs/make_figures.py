@@ -1,5 +1,6 @@
-"""Figures for docs/SYSTEM_REPORT_EN.md. Every number is read from models/v2/classifier/*/results.json (3 seeds)
-or from the feature tables. Run: conda run -n hongyi python docs/make_figures.py"""
+"""Figures for docs/SYSTEM_REPORT_EN.md. Numbers are read from models/v2/classifier/*/results.json (3 seeds),
+models/v2/cv_all/ or the feature tables, except fig_feature_signal, whose values are copied from Section 4.4.
+Run: conda run -n hongyi python docs/make_figures.py"""
 import json
 import pickle
 import sys

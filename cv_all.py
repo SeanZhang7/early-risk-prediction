@@ -23,12 +23,12 @@ import cv_splits
 import experiment as ex
 import seq_eval as se
 import seq_model as sm
-from feature_cols import EXPERIMENTS_V2
+from feature_cols import EXPERIMENTS_V2, FEATURE_GROUPS_V2
 from paths import Paths
 
 DEFAULT_CONFIGS = ["only_PHQ", "lean_PHQ_plus_LIWC", "lean_without_RE", "lean2_without_RE", "mental_emb",
                    "mental_plus_lean2_without_RE", "ft_logit", "ft_logit_plus_lean2_without_RE"]
-FORBIDDEN = {"re", "loss_dep0", "loss_dep1", "re_cummean"}
+FORBIDDEN = set(FEATURE_GROUPS_V2["RE"])
 
 
 def load_pooled(P, with_mental):

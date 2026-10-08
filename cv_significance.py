@@ -199,7 +199,8 @@ def analyse(P, configs, repeats, n_boot=2000):
         for m in METRICS:
             dd = bm(a, common, m) - bm(b, common, m)
             lo, hi = np.nanpercentile(dd, [2.5, 97.5])
-            p = 2 * min(np.nanmean(dd <= 0), np.nanmean(dd >= 0))
+            ok = dd[~np.isnan(dd)]
+            p = min(1.0, 2 * min(np.mean(ok <= 0), np.mean(ok >= 0))) if len(ok) else np.nan
             row[f"d_{m}"], row[f"d_{m}_lo"], row[f"d_{m}_hi"] = pm(a, common, m) - pm(b, common, m), lo, hi
             row[f"p_{m}"] = max(p, 1.0 / (n_boot + 1))
         for m in ("roc", "pr"):
