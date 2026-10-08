@@ -1,0 +1,6 @@
+config,FN,FP,TP,TN
+ft_logit,20,21,82,768
+lean2_without_RE,24,34,78,755
+only_PHQ,25,31,77,758
+mental_emb,25,30,77,759
+tfidf_lr,32,22,70,767

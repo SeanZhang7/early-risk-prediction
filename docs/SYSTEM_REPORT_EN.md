@@ -41,6 +41,8 @@
 
 8. **Repeated cross-validation over all 891 users (Section 10.5) is the evidence to rely on, and it changes two conclusions.** (a) The single test split was optimistic (`lean2` PR 0.831 on the test set, 0.753 pooled; intervals about ±0.07). (b) There is no demonstrable gain from features beyond PHQ: `lean2`, `lean`, `only_PHQ` and `lean_PHQ_plus_LIWC` are indistinguishable (or `lean` is slightly better), so `lean2` is **not** supported as the recommended configuration (item 4 and Section 9 are superseded). The adapter fine-tuned MentalRoBERTa logit is the strongest method (ROC 0.963, PR 0.792, F1 0.788), significantly better than frozen embeddings and than a TF-IDF logistic-regression baseline, but not significantly better than the hand-crafted features after Holm correction. The bag-of-words baseline has the highest AUC@10 and the shortest delay.
 
+9. **Error analysis (Section 10.6).** Most missed depressed users do disclose their depression, but in a few posts buried in long histories of unrelated comments; the sequence model does not keep such isolated evidence. About a third of the false alarms are control users who describe their own depression. A rule without training that alarms at the first self-reported diagnosis reaches F1 0.783 (best model 0.788) but alarms much later (median 55 posts), so the learned models' advantage is mainly earliness.
+
 **Key numbers (full data, test set with 21 depressed users)**
 
 | Configuration | # features | F1 | ROC | PR | AUC@10 | OOF PR |
@@ -632,6 +634,59 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 
 **Limitations of this analysis.** One sequence-model seed and one adapter run per outer fold; with 102 positives the intervals are wide (about ±0.07 in PR), so the non-significant differences are not evidence of equality; the comparisons were pre-specified but their number is still large; the `tfidf_lr` hyper-parameters were tuned lightly while the others were fixed earlier; the cross-validation uses the same users that earlier choices (feature groups, `lean2`, and the sequence-model hyper-parameters chosen with `run_grid.py` on the 712 training users) were made on, which favours those choices if anything; the decision rule is chosen on single-model out-of-fold probabilities but applied to the average of the 5 inner models (and, for `ft_logit`, to the average of 3 adapter models), so the threshold-based metrics (F1, delay, F_latency) may carry a small calibration shift, while ROC and PR are not affected.
 
+### 10.6 Error analysis: false positives and false negatives
+
+**Setup.** The pooled 5×3 cross-validation predictions of Section 10.5 are used, so every user is judged by models that never saw it. A user counts as an error of a configuration when its alarm decision is wrong in at least 2 of the 3 repeats. The main model is `ft_logit`; `lean2_without_RE`, `only_PHQ`, `mental_emb` and `tfidf_lr` are used for the overlap. Per-user descriptors come from the posts; two keyword patterns (regular expressions in `error_analysis.py`, fixed before the errors were inspected) mark posts with mental-health terms (depression, anxiety, therapy, antidepressants, suicide, …) and first-person self-reports of depression ("I was diagnosed with depression", "my depression", "I'm depressed", …). In addition, one reader went through the posts with the highest held-out `ft_logit`, the post at which a false alarm fired and the self-report posts of every error of `ft_logit`; there was no second annotator, so the categories below are indicative. Following the data-use agreement no text is quoted here; the excerpts stay local in `Results/v2/error_analysis/` (git-ignored).
+
+| Configuration | FN (of 102) | FP (of 789) |
+|---|---|---|
+| `ft_logit` | 20 | 21 |
+| `lean2_without_RE` | 24 | 34 |
+| `only_PHQ` | 25 | 31 |
+| `mental_emb` | 25 | 30 |
+| `tfidf_lr` | 32 | 22 |
+
+*Table 10.6a. Users misclassified by each configuration (majority over the 3 repeats).*
+
+**Overlap.** Of the 41 depressed users missed by at least one of the five models, 9 are missed by all five; of the 56 control users flagged by at least one model, 7 are flagged by all five. Most errors are therefore model-specific, but a core of hard users is shared by every approach (Figure 12, left).
+
+| Group | n | posts | words per post | share of posts with mental-health terms | users with a self-report phrase | mean held-out `ft_logit` | mean `phq_score` |
+|---|---|---|---|---|---|---|---|
+| TP | 82 | 464 | 35.0 | 0.155 | 87% | +0.93 | 0.446 |
+| FN | 20 | 854 | 13.5 | 0.028 | 60% | -0.96 | 0.400 |
+| TN | 768 | 208 | 13.5 | 0.000 | 2% | -1.73 | 0.375 |
+| FP | 21 | 241 | 31.0 | 0.058 | 38% | +0.34 | 0.424 |
+| p, FN vs TP | | 0.236 | <0.001 | <0.001 | 0.011 | <0.001 | <0.001 |
+| p, FP vs TN | | 0.274 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 |
+
+*Table 10.6b. Users grouped by the outcome of `ft_logit`: medians (share of users for the self-report column) and p-values (Mann–Whitney; Fisher's exact test for the self-report column; unadjusted, exploratory).*
+
+![Error analysis](figures/fig_errors.png)
+
+*Figure 12. Left: number of the five models that misclassify a user (users with at least one error). Right: posts per user, share of posts with mental-health terms and mean held-out `ft_logit`, by outcome of `ft_logit`.*
+
+**False negatives (20 depressed users missed by `ft_logit`)**
+- **The evidence is present but diluted.** In 17 of the 20 users the reader found at least one first-person statement of a depression diagnosis or of ongoing depression (the regular expression finds 12; it misses phrasings such as "I have chronic depression"). These posts receive high held-out `ft_logit`, so the post-level model recognises them. They are rare, however: a median 2.8 % of the posts contain mental-health terms (15.5 % for true positives), and the users have long histories (median 854 posts over about four years) of short, mostly unrelated comments (median 13.5 words against 35 for true positives).
+- **The sequence model does not keep isolated strong evidence.** For 15 of the 20 users the peak probability never reaches the threshold (median peak / threshold 0.84), although single posts are scored as strongly depressive. The probability depends on the whole history and is pulled down by the many neutral posts.
+- **Short histories.** Three users have only 11–32 posts; their probability crosses the threshold but not for `k` consecutive posts (near misses).
+- **Other cases.** One user writes the disclosures partly in code-mixed English and Tagalog, which the English model scores low; two users show only indirect cues (discussing depression in general terms; therapy and passing sadness).
+- **Possible remedies (not tested):** features that retain the strongest evidence so far (running maximum of `ft_logit`, number of posts above a score), or max/attention pooling over the history instead of a mean-like summary.
+
+**False positives (21 control users flagged by `ft_logit`)**, categories from the manual reading (they overlap; each user is counted once, in the first matching category):
+- **Own depression described in the first person** (diagnosis, ongoing depression, antidepressants for depression): 8. These cases cannot be resolved here: either the control label is wrong, or the collection's labelling criterion is stricter than what users write. Overall 27 of the 789 control users (3.4 %) match the self-report pattern in at least one post, against 83 of the 102 depressed users.
+- **Other mental-health conditions or treatment** (bipolar disorder, complex PTSD, panic and anxiety, recovery groups): 4.
+- **Chronic physical illness** with fatigue, pain or low mood (bowel disease, neuropathy, metabolic treatment): 3; two of them also mention feeling depressed.
+- **Everyday distress** (loneliness, relationships, job dissatisfaction, family conflict): 4.
+- **Supportive commenters** in mental-health communities who write about depression to others: 2.
+- The false alarm usually fires on a neutral post (a thank-you, a short reply; median after 38 posts): it reflects the accumulated history, not the post itself. False positives have a higher mean held-out `ft_logit` than false negatives (+0.34 against −0.96), so at the user level many false positives look more depressive than the missed users, and no threshold can remove both error types.
+
+**A rule without training as a sanity check.** Raising the alarm at the first post that matches the self-report pattern, with no learning at all, gives over all 891 users precision 0.755, recall 0.814 and **F1 0.783**, about the same as the best model (`ft_logit` 0.788); ranking users by the number of matching posts gives ROC 0.897 and PR 0.754 (`lean2_without_RE`: 0.953 and 0.753). The rule is late, however: median delay 55 posts, F_latency 0.621 (models 0.680–0.762) and AUC@10 0.578 (models 0.875–0.902).
+- The labels are based on self-reported diagnoses, and such statements are still in the users' texts. Part of what any model learns is to recognise the labelling statement itself, and the F1 values of all methods should be read with that in mind.
+- The added value of the learned models is mainly **earliness**: they flag users before an explicit disclosure appears.
+- A paper should report this rule as a baseline and, if possible, an evaluation with the self-report statements removed.
+
+**Caveats.** The keyword patterns are simple and not validated (both false matches and misses occur); the categories come from one reader; the counts depend on the majority rule over 3 repeats.
+
 ---
 
 ## 11. Limitations, risks and open work
@@ -683,6 +738,7 @@ conda run -n hongyi python -u cv_ft.py --repeat 0 --outer 0 --device cuda:0
 nohup conda run -n hongyi python -u cv_all.py --repeats 3 --shard 0 3 --device cuda:0 > Results/v2/cv_0.log 2>&1 &   # shards 0, 1, 2
 nohup conda run -n hongyi python -u cv_tfidf.py --repeats 3 > Results/v2/cv_tfidf.log 2>&1 &
 conda run -n hongyi python cv_significance.py --repeats 3   # -> models/v2/cv_all/{summary,pairs}.csv
+conda run -n hongyi python error_analysis.py   # error analysis of Section 10.6
 
 # 5) Summary: ex.seed_summary(P, [names], [42, 43, 44]) in Develop/Train_and_evaluate.ipynb
 # 6) Figures: conda run -n hongyi python docs/make_figures.py
@@ -709,9 +765,10 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `cv_splits.py`, `cv_ft.py`, `cv_all.py` | Repeated 5×3 cross-validation over all users: splits, nested adapter fine-tuning, sequence models |
 | `cv_tfidf.py` | TF-IDF logistic-regression baseline in the same cross-validation |
 | `cv_significance.py` | Pooled metrics, bootstrap intervals, paired tests (Holm, Nadeau–Bengio, DeLong, McNemar) |
+| `error_analysis.py` | False positives and negatives of the cross-validation, self-report rule baseline |
 | `docs/make_figures.py` | Figures of this report |
 | `data-processing.ipynb`, `Develop/Train_and_evaluate.ipynb` | Thin notebooks |
-| `tests/` | 5 test files (currently passing: 13 + 7 + 9 + 17 + 9) |
+| `tests/` | 5 test files (currently passing: 13 + 7 + 9 + 17 + 10) |
 
 ### 12.4 Tests
 ```bash

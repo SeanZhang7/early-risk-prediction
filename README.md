@@ -27,6 +27,11 @@ What the evidence supports: adapter fine-tuning is significantly better than fro
 features beyond PHQ-9 similarity (LIWC, LSM alignment) show no demonstrable gain; the TF-IDF baseline ranks users worse
 but alarms as early as or earlier than the other methods. Intervals are wide (about ±0.07 PR) because there are only 102 positives.
 
+Error analysis (report Section 10.6): most missed depressed users do disclose their depression, but in a few posts within
+long histories of unrelated comments; about a third of the false alarms are control users who describe their own
+depression. A rule without any training that alarms at the first self-reported diagnosis reaches F1 0.783, close to the
+best model, but alarms much later (median 55 posts), so the learned models' advantage is mainly earliness.
+
 ## Data
 
 The data are **not** in this repository. Get the eRisk 2025 Task 2 collection from the organisers
@@ -72,6 +77,7 @@ python -u cv_ft.py --repeat 0 --outer 0 --device cuda:0      # one job per (repe
 python -u cv_all.py --repeats 3 --shard 0 1 --device cuda:0
 python -u cv_tfidf.py --repeats 3
 python cv_significance.py --repeats 3
+python error_analysis.py                                     # aggregates to docs/figures/, excerpts stay in Results/
 
 # 5) figures and the PDF report
 python docs/make_figures.py && python docs/export_pdf.py
@@ -89,6 +95,7 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `run_experiments.py`, `run_grid.py` | command-line entry points |
 | `embed_posts.py`, `finetune_mental.py` | MentalRoBERTa baselines |
 | `cv_splits.py`, `cv_ft.py`, `cv_all.py`, `cv_tfidf.py`, `cv_significance.py` | repeated cross-validation, TF-IDF baseline, paired tests |
+| `error_analysis.py` | false positives and negatives, self-report rule baseline |
 | `benchmark.py` | per-post inference cost (`docs/benchmark_results.json`) |
 | `docs/` | `SYSTEM_REPORT_EN.md` (full report, with PDF), figure and PDF scripts |
 | `tests/` | synthetic-data checks |

@@ -1,0 +1,2 @@
+rule,roc,pr,auc10,auc100,precision,recall,f1,tp,fp,fn,median_delay,f_latency
+first self-report,0.8973,0.754,0.5778,0.7722,0.7545,0.8137,0.783,83,27,19,55,0.6205

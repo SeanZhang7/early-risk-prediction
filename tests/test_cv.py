@@ -20,6 +20,7 @@ import cv_all
 import cv_significance as cs
 import cv_splits
 import cv_tfidf
+import error_analysis as ea
 import experiment as ex
 from feature_cols import EXPERIMENTS_V2
 from paths import Paths
@@ -150,6 +151,19 @@ def test_tfidf_helpers():
 def test_baseline_pairs_do_not_change_family_one_holm():
     assert set(cs.PAIRS) & set(cs.PAIRS_BASELINE) == set()
     assert all("tfidf_lr" in pair for pair in cs.PAIRS_BASELINE)
+
+
+def test_error_majority_and_rule_baseline():
+    runs = pd.DataFrame({"user": ["a"] * 3 + ["b"] * 3 + ["c"] * 3, "y": [1] * 3 + [0] * 3 + [1] * 3,
+                         "delay": [5, 0, 0, 0, 7, 9, 3, 4, 0], "peak": [0.6, 0.4, 0.3, 0.2, 0.7, 0.8, 0.9, 0.9, 0.4],
+                         "th": [0.5] * 9})
+    m = ea.majority(runs)
+    assert m.loc["a", "outcome"] == "FN" and m.loc["b", "outcome"] == "FP" and m.loc["c", "outcome"] == "TP"
+    assert m.loc["a", "n_wrong"] == 2 and m.loc["c", "n_wrong"] == 1
+    posts = pd.DataFrame({"user_id": ["a", "a", "a", "b", "b", "c"], "self_report": [0, 1, 1, 0, 0, 0]})
+    labels = pd.Series([1, 0, 1], index=["a", "b", "c"])
+    r = ea.rule_baseline(posts, labels).iloc[0]
+    assert r["tp"] == 1 and r["fp"] == 0 and r["fn"] == 1 and r["median_delay"] == 2
 
 
 if __name__ == "__main__":
