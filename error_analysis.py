@@ -38,8 +38,9 @@ LEXICON = {
     "physical_health": r"\b(?:pain|doctors?|surgery|chronic|illness|symptoms?|hospital\w*|medications?|meds)\b",
     "substances": r"\b(?:alcohol\w*|drunk|weed|sober|sobriety|addict\w*|relapse\w*)\b",
 }
-DESCRIPTORS = ["n_posts", "share_comment", "median_words", "mean_phq", "mean_ft_logit", "share_mental_health",
-               "any_self_report", "share_life_events", "share_physical_health", "share_substances", "span_days"]
+DESCRIPTORS = ["n_posts", "share_comment", "median_words", "mean_phq", "max_phq", "mean_liwc_health", "mean_liwc_anx",
+               "mean_liwc_sad", "mean_ft_logit", "share_mental_health", "any_self_report", "share_life_events",
+               "share_physical_health", "share_substances", "span_days"]
 
 
 def load_runs(P, name):
@@ -68,7 +69,8 @@ def majority(runs):
 
 def post_table(P):
     pooled = cv_all.load_pooled(P, False)
-    posts = pooled[["pid", "user_id", "created_utc", "is_comment", "phq_score"]].copy()
+    posts = pooled[["pid", "user_id", "created_utc", "is_comment", "phq_score", "liwc_HEALTH", "liwc_ANX",
+                    "liwc_SAD"]].copy()
     posts["text"] = cv_tfidf.pooled_text(P, pooled)
     posts["words"] = posts["text"].str.split().str.len()
     for key, pattern in LEXICON.items():
@@ -94,7 +96,9 @@ def user_table(posts):
     span = g["created_utc"].agg(lambda s: (s.max() - s.min()).total_seconds() / 86400)
     return pd.DataFrame({
         "n_posts": g.size(), "share_comment": g["is_comment"].mean(), "median_words": g["words"].median(),
-        "mean_phq": g["phq_score"].mean(), "mean_ft_logit": g["ft_logit"].mean(),
+        "mean_phq": g["phq_score"].mean(), "max_phq": g["phq_score"].max(), "mean_liwc_health": g["liwc_HEALTH"].mean(),
+        "mean_liwc_anx": g["liwc_ANX"].mean(), "mean_liwc_sad": g["liwc_SAD"].mean(),
+        "mean_ft_logit": g["ft_logit"].mean(),
         "share_mental_health": g["mental_health"].mean(), "any_self_report": (g["self_report"].sum() > 0).astype(int),
         "share_life_events": g["life_events"].mean(), "share_physical_health": g["physical_health"].mean(),
         "share_substances": g["substances"].mean(), "span_days": span})
@@ -184,7 +188,7 @@ def figure(table, path):
             patch.set_facecolor(c)
         ax.set_xticks(range(1, 5))
         ax.set_xticklabels([f"{o}\n(n={len(d)})" for o, d in zip(order, data)], fontsize=8)
-        ax.set_title(f"{title} ({MAIN})", fontsize=10)
+        ax.set_title(f"{title}\n({MAIN})", fontsize=9)
         if log:
             ax.set_yscale("log")
     fig.tight_layout()
@@ -192,7 +196,10 @@ def figure(table, path):
     plt.close(fig)
 
 
-def main():
+def main(main_name=MAIN):
+    global MAIN
+    MAIN = main_name
+    suffix = "" if MAIN == "ft_logit" else f"_{MAIN}"
     P = Paths()
     out_local = P.work / "error_analysis"
     out_local.mkdir(parents=True, exist_ok=True)
@@ -234,21 +241,25 @@ def main():
         "FP_users": len(fp), "FP_alarm_delay_median": fp.delay.median(),
         "FP_with_self_report": int(fp.any_self_report.sum()),
         "controls_with_self_report": int(table.loc[ctl, "any_self_report"].sum()),
-        "depressed_with_self_report": int(table.loc[dep, "any_self_report"].sum())}])
+        "depressed_with_self_report": int(table.loc[dep, "any_self_report"].sum()),
+        "FN_also_missed_by_ft_logit": int((fn["ft_logit_outcome"] == "FN").sum()),
+        "FP_also_flagged_by_ft_logit": int((fp["ft_logit_outcome"] == "FP").sum())}])
 
-    summary.to_csv(out_docs / "error_counts.csv", index=False)
-    overlap.to_csv(out_docs / "error_overlap.csv", index=False)
-    groups.to_csv(out_docs / "error_groups.csv", index=False, float_format="%.4g")
-    near.to_csv(out_docs / "error_misc.csv", index=False, float_format="%.4g")
+    summary.to_csv(out_docs / f"error_counts{suffix}.csv", index=False)
+    overlap.to_csv(out_docs / f"error_overlap{suffix}.csv", index=False)
+    groups.to_csv(out_docs / f"error_groups{suffix}.csv", index=False, float_format="%.4g")
+    near.to_csv(out_docs / f"error_misc{suffix}.csv", index=False, float_format="%.4g")
     rule = rule_baseline(posts, cv_splits.all_users(P))
     rule.to_csv(out_docs / "error_rule_baseline.csv", index=False, float_format="%.4g")
-    table.to_csv(out_local / "users.csv", float_format="%.4g")
-    excerpts(posts, table, probs_main, out_local / "excerpts.md")
-    figure(table, out_docs / "fig_errors.png")
+    table.to_csv(out_local / f"users{suffix}.csv", float_format="%.4g")
+    excerpts(posts, table, probs_main, out_local / f"excerpts{suffix}.md")
+    figure(table, out_docs / f"fig_errors{suffix}.png")
     pd.set_option("display.width", 250, "display.max_columns", 40)
     print(summary.to_string(index=False), overlap.to_string(index=False), groups.round(3).to_string(index=False),
           near.T.to_string(), rule.round(3).to_string(index=False), sep="\n\n")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    main(sys.argv[1] if len(sys.argv) > 1 else MAIN)

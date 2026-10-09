@@ -31,6 +31,8 @@ Error analysis (report Section 10.6): most missed depressed users do disclose th
 long histories of unrelated comments; about a third of the false alarms are control users who describe their own
 depression. A rule without any training that alarms at the first self-reported diagnosis reaches F1 0.783, close to the
 best model, but alarms much later (median 55 posts), so the learned models' advantage is mainly earliness.
+The hand-crafted `lean2` fails differently (Section 10.7): it misses users with an explicit disclosure but a short history and
+flags control users who write about health topics.
 
 ## Data
 
@@ -78,6 +80,7 @@ python -u cv_all.py --repeats 3 --shard 0 1 --device cuda:0
 python -u cv_tfidf.py --repeats 3
 python cv_significance.py --repeats 3
 python error_analysis.py                                     # aggregates to docs/figures/, excerpts stay in Results/
+python error_analysis.py lean2_without_RE                    # same for another model (outputs get a suffix)
 
 # 5) figures and the PDF report
 python docs/make_figures.py && python docs/export_pdf.py

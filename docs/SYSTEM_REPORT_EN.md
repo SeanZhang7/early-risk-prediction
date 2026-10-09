@@ -41,7 +41,7 @@
 
 8. **Repeated cross-validation over all 891 users (Section 10.5) is the evidence to rely on, and it changes two conclusions.** (a) The single test split was optimistic (`lean2` PR 0.831 on the test set, 0.753 pooled; intervals about ±0.07). (b) There is no demonstrable gain from features beyond PHQ: `lean2`, `lean`, `only_PHQ` and `lean_PHQ_plus_LIWC` are indistinguishable (or `lean` is slightly better), so `lean2` is **not** supported as the recommended configuration (item 4 and Section 9 are superseded). The adapter fine-tuned MentalRoBERTa logit is the strongest method (ROC 0.963, PR 0.792, F1 0.788), significantly better than frozen embeddings and than a TF-IDF logistic-regression baseline, but not significantly better than the hand-crafted features after Holm correction. The bag-of-words baseline has the highest AUC@10 and the shortest delay.
 
-9. **Error analysis (Section 10.6).** Most missed depressed users do disclose their depression, but in a few posts buried in long histories of unrelated comments; the sequence model does not keep such isolated evidence. About a third of the false alarms are control users who describe their own depression. A rule without training that alarms at the first self-reported diagnosis reaches F1 0.783 (best model 0.788) but alarms much later (median 55 posts), so the learned models' advantage is mainly earliness.
+9. **Error analysis (Section 10.6).** Most missed depressed users do disclose their depression, but in a few posts buried in long histories of unrelated comments; the sequence model does not keep such isolated evidence. About a third of the false alarms are control users who describe their own depression. A rule without training that alarms at the first self-reported diagnosis reaches F1 0.783 (best model 0.788) but alarms much later (median 55 posts), so the learned models' advantage is mainly earliness. For the hand-crafted `lean2` (Section 10.7) the errors differ: it misses depressed users with an explicit disclosure but a short history, and flags control users who write about health topics, because its PHQ and LIWC features measure vocabulary rather than the statement.
 
 **Key numbers (full data, test set with 21 depressed users)**
 
@@ -686,6 +686,47 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 - A paper should report this rule as a baseline and, if possible, an evaluation with the self-report statements removed.
 
 **Caveats.** The keyword patterns are simple and not validated (both false matches and misses occur); the categories come from one reader; the counts depend on the majority rule over 3 repeats.
+
+### 10.7 Error analysis of `lean2`
+
+**Setup.** Same protocol as Section 10.6 (pooled 5×3 cross-validation; a user is an error when the alarm decision is wrong in at least 2 of the 3 repeats), now for the hand-crafted configuration `lean2_without_RE` (PHQ features, three LIWC categories, LSM style alignment, running means; RE is excluded from the cross-validation, Section 10.5). It misclassifies 24 depressed users and 34 control users, against 20 and 21 for `ft_logit` (Table 10.6a). Of these, 11 of the 24 false negatives are also missed by `ft_logit` and 17 of the 34 false positives are also flagged by it. One reader (no second annotator) went through the top posts by held-out `ft_logit`, the post at which the alarm fired and the self-report posts of the 13 false negatives that `ft_logit` gets right and of all 34 false positives; the 11 shared false negatives are covered by Section 10.6. No text is quoted (data-use agreement); excerpts stay in `Results/v2/error_analysis/`.
+
+| Group | n | posts | words per post | mean `phq_score` | max `phq_score` | LIWC HEALTH ×10³ | LIWC ANX ×10³ | LIWC SAD ×10³ | share of posts with mental-health terms | users with a self-report phrase | mean held-out `ft_logit` |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| TP | 78 | 544 | 32.0 | 0.449 | 0.618 | 9.0 | 4.1 | 10.9 | 0.158 | 87% | +0.93 |
+| FN | 24 | 421 | 24.0 | 0.394 | 0.588 | 6.3 | 2.3 | 6.5 | 0.055 | 62% | -0.55 |
+| TN | 755 | 207 | 13.5 | 0.375 | 0.531 | 2.3 | 1.2 | 4.8 | 0.000 | 2% | -1.75 |
+| FP | 34 | 384 | 24.0 | 0.413 | 0.601 | 6.4 | 3.1 | 7.5 | 0.029 | 29% | -0.14 |
+| p, FN vs TP |  | 0.318 | 0.073 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 | 0.014 | <0.001 |
+| p, FP vs TN |  | 0.066 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 | <0.001 |
+
+*Table 10.7a. Users grouped by the outcome of `lean2_without_RE`: medians (share of users for the self-report column); p-values as in Table 10.6b (unadjusted, exploratory). LIWC rates are per word ×1000. `ft_logit` is shown only as an outside text signal; `lean2` does not use it.*
+
+![Error analysis of lean2](figures/fig_errors_lean2_without_RE.png)
+
+*Figure 13. As Figure 12, for `lean2_without_RE`.*
+
+**False negatives (24 depressed users missed by `lean2`)**
+- **The features see the topic, not the statement.** Missed users have a median per-user `phq_score` of 0.394, close to control users (0.375) and well below detected users (0.449); their LIWC HEALTH/ANX/SAD rates are also lower than those of detected users (Table 10.7a). Yet the 13 misses that `ft_logit` does catch all contain first-person statements of a depression diagnosis, medication or ongoing depression (the regular expression finds only 15 of the 24 in total). The `phq_score` of these posts lies in the ordinary range (0.41–0.59 in the excerpts read), while `ft_logit` scores them +2.9 to +4.6. PHQ similarity responds to symptom-like wording, not to "I was diagnosed with depression".
+- **Short histories (7 of these 13 users have 10–54 posts).** With few posts a single strong disclosure matters, and `lean2` does not weigh it enough; `ft_logit` does. Across these 13 users the peak probability reaches 0.97 of the threshold in the median.
+- **Long histories (6 of the 13, 336–1524 posts).** The disclosures are a few posts among many others (2–15 % of the posts contain mental-health terms) and are diluted, as for `ft_logit`. The 11 shared false negatives are of this type (median 622 posts, peak / threshold 0.47).
+- **Near misses.** 15 of the 24 reach at least 80 % of the threshold (5 cross it, but not for `k` consecutive posts); 6 stay below 50 %.
+- Adding the fine-tuned logit to `lean2` does not remove these errors systematically: `ft_logit_plus_lean2_without_RE` is not significantly better than `ft_logit` alone (Section 10.5).
+
+**False positives (34 control users flagged by `lean2`)**, categories as in Section 10.6 (each user counted once, in the first matching category; indicative, one reader):
+- **Own depression or suicidal thoughts described in the first person:** 6 (one of them writes about wanting to end their life while stating not to be depressed).
+- **Other mental-health conditions or treatment** (anxiety, ADHD/OCD, bipolar disorder, C-PTSD, autism, therapy, recovery groups): 9.
+- **Chronic physical illness or injury** with distress: 4.
+- **Everyday distress** (relationships, loneliness, body image, parenting, family conflict, low self-worth): 9.
+- **Supportive commenters** who write about depression or suicide prevention to others: 5.
+- **No clear depression-related content:** 1.
+- **The features measure vocabulary.** False positives have much higher `phq_score` and LIWC HEALTH/ANX/SAD rates than true negatives (all p < 0.001, Table 10.7a), and 29 % of them match the self-report pattern (2 % of true negatives). 18 of the 34 (other conditions, physical illness, supportive commenters) write about health in mental-health communities, which a topic-based feature cannot separate from having depression. `ft_logit` flags fewer such users (21 in total) but the 17 shared ones are of the same kinds.
+- **The 17 false alarms of `lean2` that `ft_logit` avoids** have a lower mean held-out `ft_logit` (median −0.80) than the 17 shared ones (+0.36); `lean2` flags them on topic vocabulary alone.
+- **The alarm is not caused by the post on which it fires.** The alarm post has a median held-out `ft_logit` of +0.64 (negative in 11 of 30, below the user's own median in 9 of 30) and is often a short neutral reply; the alarm comes from the accumulated history. The median alarm is raised after 29 posts (`ft_logit`: 38); 14 of the 30 fire within the first 30 posts, 11 after more than 100.
+
+**Comparison with `ft_logit`.** The two models make different mistakes on the same data: `lean2` additionally misses short-history users with an explicit disclosure (13 users) and additionally flags health-topic commenters (17 users). Both extra error types follow from using lexical topic features instead of reading the statement. The 9 depressed and 7 control users that all five models get wrong (Section 10.6) are not helped by any of the approaches.
+
+**Caveats.** `lean2_without_RE` instead of `lean2` (RE excluded); the keyword patterns are not validated; the categories come from one reader who read only the highest-scoring posts of each user; the alarm-post statistics use repeat 0 only.
 
 ---
 

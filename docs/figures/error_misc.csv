@@ -1,2 +1,2 @@
-FN_users,FN_peak_crossed_th,FN_peak_over_th_median,FN_without_mental_health_terms,FN_with_self_report,FP_users,FP_alarm_delay_median,FP_with_self_report,controls_with_self_report,depressed_with_self_report
-20,5,0.836,0,12,21,38,8,27,83
+FN_users,FN_peak_crossed_th,FN_peak_over_th_median,FN_without_mental_health_terms,FN_with_self_report,FP_users,FP_alarm_delay_median,FP_with_self_report,controls_with_self_report,depressed_with_self_report,FN_also_missed_by_ft_logit,FP_also_flagged_by_ft_logit
+20,5,0.836,0,12,21,38,8,27,83,20,21
