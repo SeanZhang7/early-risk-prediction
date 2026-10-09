@@ -83,6 +83,8 @@ EXPERIMENTS_V2 = {"all": list(FEATURE_COLS_V2), "post_level_only": _keep(POST_LE
 for _g in ("PHQ", "SIM", "LSM", "RE", "OWN_LIWC", "BEHAVIOR"):
     EXPERIMENTS_V2[f"only_{_g}"] = _keep(FEATURE_GROUPS_V2[_g] + FEATURE_GROUPS_V2["CONTEXT"])
     EXPERIMENTS_V2[f"without_{_g}"] = _keep(set(FEATURE_COLS_V2) - set(FEATURE_GROUPS_V2[_g]))
+# Only post position and row type: shows what a group adds beyond how long a user's history is.
+EXPERIMENTS_V2["context_only"] = _keep(FEATURE_GROUPS_V2["CONTEXT"])
 
 # lean: only the signals that held up in the ablations (PHQ, RE, three LIWC categories, four LSM sub-scores); no sim.
 LEAN_LIWC = ["liwc_HEALTH", "liwc_ANX", "liwc_SAD"]

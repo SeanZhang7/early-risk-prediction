@@ -51,6 +51,12 @@ PAIRS_BASELINE = [
     ("only_PHQ", "tfidf_lr"),
     ("lean2_without_RE", "tfidf_lr"),
 ]
+# Third family (single feature groups, cv_all.py --configs only_*): each group against the context-only control, and
+# PHQ against the other groups. Holm within the family.
+PAIRS_GROUPS = [(g, "context_only") for g in ("only_PHQ", "only_OWN_LIWC", "only_LSM", "only_LSMX_no_par", "only_SIM",
+                                              "only_BEHAVIOR")] + [
+    ("only_PHQ", "only_OWN_LIWC"), ("only_PHQ", "only_LSMX_no_par"), ("only_PHQ", "only_LSM"),
+]
 
 
 def holm(pvals):
@@ -189,7 +195,8 @@ def analyse(P, configs, repeats, n_boot=2000):
         summary.append(row)
 
     pair_rows = []
-    for family, a, b in [(1, a, b) for a, b in PAIRS] + [(2, a, b) for a, b in PAIRS_BASELINE]:
+    for family, a, b in ([(1, a, b) for a, b in PAIRS] + [(2, a, b) for a, b in PAIRS_BASELINE]
+                         + [(3, a, b) for a, b in PAIRS_GROUPS]):
         if a not in data or b not in data:
             continue
         common = sorted(set(data[a]) & set(data[b]))
@@ -237,7 +244,7 @@ def main():
     ap.add_argument("--configs", nargs="+", default=None)
     args = ap.parse_args()
     P = Paths()
-    configs = args.configs or sorted({c for pair in PAIRS + PAIRS_BASELINE for c in pair})
+    configs = args.configs or sorted({c for pair in PAIRS + PAIRS_BASELINE + PAIRS_GROUPS for c in pair})
     summary, pairs, n_pos, n_users = analyse(P, configs, args.repeats, args.boot)
     out = P.models_dir / "cv_all"
     summary.to_csv(out / "summary.csv", index=False)

@@ -43,6 +43,8 @@
 
 9. **Error analysis (Section 10.6).** Most missed depressed users do disclose their depression, but in a few posts buried in long histories of unrelated comments; the sequence model does not keep such isolated evidence. About a third of the false alarms are control users who describe their own depression. A rule without training that alarms at the first self-reported diagnosis reaches F1 0.783 (best model 0.788) but alarms much later (median 55 posts), so the learned models' advantage is mainly earliness. For the hand-crafted `lean2` (Section 10.7) the errors differ: it misses depressed users with an explicit disclosure but a short history, and flags control users who write about health topics, because its PHQ and LIWC features measure vocabulary rather than the statement.
 
+10. **Feature groups (Section 10.8).** Run alone in the cross-validation, the groups rank PHQ > LIWC > LSM (counts) > LSM alignment > behaviour > cosine similarity; PHQ is significantly better than LIWC and the LSM groups. Post position and volume alone already give ROC 0.662. After one post PHQ and LIWC rank users with AUC about 0.75, the LSM groups need several posts (AUC 0.53–0.56 after one post); LIWC alarms earliest among the informative groups but is less precise. The groups miss and flag different users (misses of PHQ are long-history users with diluted evidence; false alarms of the behaviour features are heavy posters), and every configuration loses recall on depressed users without an explicit self-report phrase (indicative, 19 users). RE was not part of the cross-validation.
+
 **Key numbers (full data, test set with 21 depressed users)**
 
 | Configuration | # features | F1 | ROC | PR | AUC@10 | OOF PR |
@@ -580,7 +582,7 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 ### 10.5 Repeated cross-validation over all users (the results to rely on)
 
 **Protocol.** All 891 labelled users (102 depressed; train and test pooled) are split by 5-fold stratified cross-validation repeated 3 times (`cv_splits.py`, seed 2025). In every outer fold the sequence model is trained on about 80 % of the users exactly as in Section 5 (inner 5-fold CV, early stopping on 12 % of the inner training users); the decision rule `(th, k)` is chosen on the pooled inner out-of-fold probabilities of the training users only, and the 5 inner models are averaged on the held-out users (`cv_all.py`). Every user is therefore predicted once per repeat by a model that never saw it, and all configurations use identical splits and seeds.
-- **RE is excluded** (`*_without_RE` names), because its language models are fitted on labels and would leak across the pooled folds; Section 8.6 shows that RE does not change the metrics.
+- **RE is not part of the cross-validation** (`*_without_RE` names). Its two language models are fitted on the labels, so reusing them across the pooled folds would leak, and a nested version (refitting them inside every outer fold) was not run. RE was tested only on the single split, where removing it changes neither the test nor the out-of-fold metrics (Section 8.6): the finding is "RE is redundant on the single split", not "RE is redundant in the cross-validation".
 - **`ft_logit` is re-fitted inside every outer fold** (`cv_ft.py`): 3 inner adapter models are trained on the outer training users only (one adapter run per outer fold).
 - **`tfidf_lr`** (new bag-of-words baseline, `cv_tfidf.py`): TF-IDF (word 1–2-grams, minimum document frequency 5, at most 200 000 terms, sublinear tf; fitted on the outer training text without labels) and a logistic regression (`C = 1`) that scores every post with the label of its user (each user weighted equally, classes balanced). The user's score after *n* posts is the sigmoid of the running mean of the post logits, so it is causal and uses the same `(th, k)` rule, selected on the same inner out-of-fold scheme. `C` was compared among 0.1, 0.3, 1 and 3 on the inner out-of-fold F_latency of one outer fold only (0.710, 0.715, 0.732, 0.723); n-grams and vocabulary size were not tuned.
 - **Metrics.** ROC and PR use the user's maximum probability; AUC@10 uses the probability after 10 posts; F1, median delay and F_latency use, for every user, the rule chosen in the user's own outer fold. Values are means over the 3 repeats; intervals are 95 % percentile intervals of a stratified bootstrap over users (2 000 draws, the same draws for every configuration, repeats averaged inside each draw). They reflect the finite number of users, not the training randomness.
@@ -728,6 +730,96 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 
 **Caveats.** `lean2_without_RE` instead of `lean2` (RE excluded); the keyword patterns are not validated; the categories come from one reader who read only the highest-scoring posts of each user; the alarm-post statistics use repeat 0 only.
 
+### 10.8 Feature groups: how early each detects, and what each gets wrong
+
+**Setup.** Every feature group was run alone in the pooled 5×3 cross-validation of Section 10.5 (`only_X`: the group plus the three context features `post_index`, `is_comment`, `has_parent`; same splits, seeds and decision rule). `context_only` has the three context features alone and controls for the position and volume of posts. "LSM (counts)" is the original LSM of Section 4 (73 features with history), "LSM alignment" the rate-based `lsmr_*`/`dlsm_*` (43), "LIWC" the 15 own-text categories (33). RE is not included (Section 10.5). *Curves:* AUC after n posts uses the probability after n posts (a user with fewer posts contributes the last one); "flagged within n posts" is the share of users whose alarm, under the decision rule chosen in the user's outer fold, fired within n posts; means over the 3 repeats, 95 % bootstrap intervals over users (500 draws, stratified, same draws for every configuration). *Tests:* a third family of 9 pre-specified comparisons (every group against `context_only`, and PHQ against LIWC, LSM and LSM alignment), Holm-adjusted within the family; the first two families are unchanged. *Errors:* same majority rule as Section 10.6; the profile uses the automatic descriptors only (no manual reading for these configurations).
+
+| Group | # features | ROC | PR | AUC@10 | F1 | F_latency |
+|---|---|---|---|---|---|---|
+| PHQ | 28 | 0.952 [0.935, 0.968] | 0.742 [0.677, 0.815] | 0.875 | 0.718 [0.657, 0.778] | 0.681 |
+| LIWC (15 categories) | 33 | 0.926 [0.901, 0.949] | 0.660 [0.586, 0.745] | 0.847 | 0.653 [0.592, 0.714] | 0.620 |
+| LSM (counts) | 73 | 0.874 [0.837, 0.909] | 0.556 [0.476, 0.641] | 0.764 | 0.564 [0.498, 0.624] | 0.479 |
+| LSM alignment | 43 | 0.851 [0.811, 0.886] | 0.478 [0.403, 0.568] | 0.745 | 0.507 [0.448, 0.566] | 0.464 |
+| behaviour | 9 | 0.808 [0.763, 0.849] | 0.375 [0.314, 0.458] | 0.745 | 0.438 [0.377, 0.500] | 0.416 |
+| cosine similarity | 10 | 0.727 [0.676, 0.778] | 0.303 [0.244, 0.381] | 0.621 | 0.272 [0.251, 0.292] | 0.255 |
+| context only (control) | 3 | 0.662 [0.607, 0.718] | 0.333 [0.259, 0.419] | 0.620 | 0.236 [0.222, 0.249] | 0.225 |
+
+*Table 10.8a. Single feature groups in the cross-validation (mean over repeats, 95 % bootstrap interval; AUC@10 intervals about ±0.04). Prevalence of depressed users: 11.4 %.*
+
+| A − B | ΔROC (Holm p) | ΔPR (Holm p) | ΔF1 (Holm p) | ΔAUC@10 (Holm p) |
+|---|---|---|---|---|
+| `only_PHQ` − `context_only` | +0.291 (0.004) | +0.409 (0.004) | +0.482 (0.004) | +0.255 (0.004) |
+| `only_OWN_LIWC` − `context_only` | +0.264 (0.004) | +0.326 (0.004) | +0.417 (0.004) | +0.226 (0.004) |
+| `only_LSM` − `context_only` | +0.212 (0.004) | +0.223 (0.004) | +0.328 (0.004) | +0.144 (0.004) |
+| `only_LSMX_no_par` − `context_only` | +0.189 (0.004) | +0.144 (0.042) | +0.271 (0.004) | +0.125 (0.004) |
+| `only_SIM` − `context_only` | +0.066 (0.018) | -0.030 (0.686) | +0.036 (0.004) | +0.001 (0.957) |
+| `only_BEHAVIOR` − `context_only` | +0.146 (0.004) | +0.042 (0.686) | +0.202 (0.004) | +0.124 (0.004) |
+| `only_PHQ` − `only_OWN_LIWC` | +0.027 (0.004) | +0.082 (0.024) | +0.064 (0.017) | +0.028 (0.214) |
+| `only_PHQ` − `only_LSMX_no_par` | +0.102 (0.004) | +0.264 (0.004) | +0.211 (0.004) | +0.130 (0.004) |
+| `only_PHQ` − `only_LSM` | +0.078 (0.004) | +0.186 (0.004) | +0.154 (0.004) | +0.111 (0.004) |
+
+*Table 10.8b. Paired differences A − B between feature groups (mean over repeats, Holm-adjusted p in parentheses).*
+
+![Feature groups: AUC and detection after n posts](figures/fig_groups_curves.png)
+
+*Figure 14. Left: AUC after n posts. Middle and right: share of depressed and of control users flagged within n posts. Solid: single feature groups; dashed: references (PHQ + 3 LIWC, frozen and adapter fine-tuned MentalRoBERTa, TF-IDF); bands: 95 % bootstrap intervals.*
+
+| Configuration | AUC@1 | AUC@10 | AUC@100 | AUC@500 | flagged ≤10 posts | flagged ≤50 posts | precision | median delay [Q1–Q3] | detected within 10 |
+|---|---|---|---|---|---|---|---|---|---|
+| PHQ | 0.748 | 0.875 | 0.922 | 0.953 | 0.28 | 0.56 | 0.699 | 14.0 [10–46] | 38% |
+| LIWC (15 categories) | 0.763 | 0.847 | 0.904 | 0.923 | 0.31 | 0.54 | 0.613 | 14.0 [6–45] | 44% |
+| LSM (counts) | 0.559 | 0.764 | 0.825 | 0.855 | 0.04 | 0.37 | 0.517 | 40.0 [17–96] | 6% |
+| LSM alignment | 0.532 | 0.745 | 0.811 | 0.842 | 0.19 | 0.43 | 0.421 | 22.8 [8–74] | 30% |
+| behaviour | 0.702 | 0.745 | 0.766 | 0.794 | 0.23 | 0.36 | 0.365 | 14.2 [6–120] | 41% |
+| cosine similarity | 0.556 | 0.621 | 0.681 | 0.711 | 0.28 | 0.60 | 0.163 | 17.0 [9–54] | 34% |
+| context only (control) | 0.481 | 0.620 | 0.611 | 0.644 | 0.42 | 0.65 | 0.137 | 12.5 [4–52] | 48% |
+| PHQ + 3 LIWC | 0.774 | 0.891 | 0.924 | 0.951 | 0.37 | 0.60 | 0.700 | 10.3 [5–35] | 49% |
+| MentalRoBERTa frozen | 0.824 | 0.889 | 0.916 | 0.931 | 0.52 | 0.67 | 0.722 | 8.3 [5–12] | 70% |
+| MentalRoBERTa adapter | 0.803 | 0.878 | 0.936 | 0.957 | 0.42 | 0.65 | 0.783 | 9.5 [5–32] | 54% |
+| TF-IDF | 0.806 | 0.902 | 0.926 | 0.937 | 0.52 | 0.65 | 0.749 | 5.7 [5–10] | 76% |
+
+*Table 10.8c. Earliness of the feature groups. "Flagged ≤n posts" is the share of all depressed users flagged within n posts; delay statistics are over the detected depressed users (true positives of the three repeats).*
+
+| Configuration | FN | FP | FN median posts | FN mental-health share | FN with self-report | FP median posts | FP with self-report | recall, with self-report (83) | recall, without (19) |
+|---|---|---|---|---|---|---|---|---|---|
+| PHQ | 25 | 31 | 622 | 0.051 | 64% | 412 | 23% | 0.81 | 0.53 |
+| LIWC (15 categories) | 31 | 41 | 622 | 0.053 | 58% | 231 | 20% | 0.78 | 0.32 |
+| LSM (counts) | 36 | 61 | 546 | 0.095 | 67% | 483 | 18% | 0.71 | 0.37 |
+| LSM alignment | 36 | 83 | 304 | 0.115 | 67% | 368 | 13% | 0.71 | 0.37 |
+| behaviour | 47 | 96 | 336 | 0.126 | 72% | 660 | 7% | 0.59 | 0.32 |
+| cosine similarity | 19 | 439 | 76 | 0.150 | 53% | 405 | 5% | 0.88 | 0.53 |
+| context only (control) | 11 | 583 | 54 | 0.237 | 64% | 397 | 4% | 0.92 | 0.79 |
+| PHQ + 3 LIWC | 24 | 34 | 746 | 0.031 | 62% | 416 | 21% | 0.82 | 0.53 |
+| MentalRoBERTa frozen | 25 | 30 | 956 | 0.029 | 64% | 225 | 27% | 0.81 | 0.53 |
+| MentalRoBERTa adapter | 20 | 21 | 854 | 0.028 | 60% | 241 | 38% | 0.86 | 0.58 |
+| TF-IDF | 32 | 22 | 954 | 0.032 | 69% | 172 | 27% | 0.73 | 0.47 |
+
+*Table 10.8d. Error profile (users wrong in at least 2 of 3 repeats; medians; shares of users). Mental-health share = share of posts with mental-health terms (patterns of Section 10.6). Recall is split by whether a depressed user has at least one post matching the self-report pattern (83 users) or none (19 users; one user is 5 percentage points, so these values are indicative only).*
+
+![Errors by feature group](figures/fig_groups_errors.png)
+
+*Figure 15. Left: misclassified users per configuration. Middle and right: overlap (Jaccard index) of the sets of false negatives and of false positives.*
+
+**Which groups carry signal.**
+- The ranking is PHQ > LIWC > LSM (counts) > LSM alignment > behaviour > cosine similarity (Table 10.8a). PHQ alone reaches ROC 0.952 and PR 0.742, LIWC alone 0.926 and 0.660. PHQ is significantly better than LIWC (ΔROC +0.027, ΔPR +0.082, ΔF1 +0.064; Holm p = 0.004, 0.024, 0.017), than LSM (counts) and than LSM alignment (ΔPR +0.186 and +0.264, Holm p = 0.004).
+- Every group is above `context_only` in ROC (Holm p ≤ 0.018), but in PR only PHQ, LIWC, LSM (counts) and LSM alignment are (Holm p ≤ 0.042); behaviour and cosine similarity are not (p = 0.686).
+- **Post position and volume alone are informative.** `context_only` reaches ROC 0.662 and PR 0.333 (prevalence 0.114) because depressed users write more posts. Its decision rule flags 583 of the 789 control users (precision 0.137, F1 0.236), so it is useless as a detector but shows the size of the length confound. Cosine similarity (ROC 0.727) and behaviour (0.808) add only a little to it; the LSM groups add more (0.874 and 0.851).
+
+**How early each group detects.**
+- **After one post** (Figure 14, left) the text groups already rank users: LIWC AUC 0.763 and PHQ 0.748 (behaviour 0.702), against 0.803 for the adapter fine-tuned model and 0.806 for TF-IDF. LSM (counts), LSM alignment and cosine similarity are near 0.53–0.56 at one post: they exist only for comments with a parent text and need several posts to accumulate. By 10 posts: PHQ 0.875, LIWC 0.846, LSM 0.764, LSM alignment 0.745, behaviour 0.745. By 100 posts PHQ (0.922) is close to the fine-tuned model (0.936), LIWC 0.904, the LSM groups 0.81–0.82.
+- **Alarm delay** (Table 10.8c). Among the informative single groups (leaving out the context control, which flags most users) LIWC alarms earliest (44 % of the detected users within 10 posts, median 14) but is less precise than PHQ (precision 0.613 against 0.699); PHQ alarms at a median of 14 posts (38 % within 10); LSM (counts) is the slowest (median 40 posts, 6 % within 10, 3.9 % of all depressed users flagged at 10 posts). The combination of PHQ and 3 LIWC categories alarms earlier than either (median 10.3, 48.5 % within 10) at the precision of PHQ (0.700); this is descriptive, the difference was not tested. TF-IDF, frozen and adapter fine-tuned MentalRoBERTa alarm earliest (76 %, 70 % and 54 % of detected users within 10 posts). In the cumulative curves (Figure 14, middle) the groups differ mostly before 50 posts; after 500 posts PHQ flags 70 % of the depressed users, LIWC 68 %, LSM alignment 60 %, behaviour 47 %.
+- **False alarms over time** (Figure 14, right): context only and cosine similarity flag 68 % and 51 % of control users after 500 posts, behaviour and LSM alignment about 11 %, PHQ and LIWC under 6 %.
+
+**What each group gets wrong** (Table 10.8d, Figure 15).
+- **Different groups miss different depressed users.** The overlap of the false-negative sets is high between PHQ and PHQ + 3 LIWC (Jaccard 0.88, the combination mostly inherits PHQ's misses), moderate between PHQ and LIWC (0.56) or LSM (0.42), and low between PHQ and LSM alignment (0.27) or the adapter fine-tuned model (0.36). The false-positive sets overlap much less (mostly 0.07–0.26 between groups, 0.37 between the two LSM groups; PHQ with the fine-tuned model 0.40).
+- **Misses of the stronger groups are the diluted users.** The median history of the users missed by PHQ or LIWC is 622 posts (adapter: 854), with few mental-health posts (5 % of posts); the weaker groups also miss users with shorter histories (LSM alignment 304, behaviour 336 posts) and users who write more openly about mental health (10–13 % of the posts for LSM, LSM alignment and behaviour).
+- **False alarms differ in kind.** The semantic groups flag control users who write about depression: 23 % (PHQ), 20 % (LIWC) and 18 % (LSM) of their false positives match the self-report pattern (adapter 38 %, TF-IDF 27 %; 3.4 % of all control users). The behaviour group flags heavy posters: the median false positive has 660 posts (true negatives: 207), and only 7 % match the self-report pattern. LIWC's false positives have shorter histories (median 231 posts), where a few posts with health vocabulary are enough.
+- **Without an explicit self-report phrase every configuration misses more** (indicative, 19 users): recall falls from 0.81 to 0.53 for PHQ, from 0.86 to 0.58 for the adapter fine-tuned model and from 0.83 to 0.58 for `lean`, and by more for LIWC (0.78 to 0.32), LSM (0.71 to 0.37) and behaviour (0.59 to 0.32). PHQ and the fine-tuned model therefore hold up best, LIWC and behaviour fall most.
+
+**Summary.** PHQ is the strongest and, among the single groups, one of the earliest signals; LIWC is almost as early but noisier; the LSM groups are late and weak, which agrees with the absence of a gain beyond PHQ in Section 10.5; behaviour and context mainly reflect how much a user writes. Groups err on different users, but combining them (PHQ + 3 LIWC) mostly reproduces the errors of PHQ.
+
+**Caveats.** Every configuration contains the three context features, including `post_index`; the groups differ in size (9 to 73 features); RE is not included; 19 depressed users without a self-report phrase is a small subset; the error profiles use keyword patterns without manual reading; for AUC after n posts, users with fewer than n posts use their last probability, so the curves at large n mix users of different history lengths; the delay statistics are descriptive and untested.
+
 ---
 
 ## 11. Limitations, risks and open work
@@ -741,6 +833,7 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 6. **External dependency.** The PHQ features depend on the `extremism` repository (our fork, branch `my-changes`, which contains the fix to `item_scoring.py`).
 7. **The fine-tuned MentalRoBERTa baseline is a single adapter run** with untuned hyper-parameters and post-level training; its variance and the benefit of tuning or of end-to-end user-level fine-tuning are unknown.
 8. **Repository hygiene.** The online client directory `Test/` contains a plaintext token (git-ignored but still in the git history; it must be cleaned before the repository is made public).
+9. **RE was not evaluated in the repeated cross-validation.** Its role is established on the single split only (21 test positives, 81 out-of-fold positives), where it is redundant; with a nested refit of the language models it could be re-tested, but this was not done.
 
 **Open work**
 - More adapter seeds and some hyper-parameter tuning for the fine-tuned baseline, and possibly end-to-end user-level fine-tuning (the cross-validation of Section 10.5 uses one adapter run per outer fold).
@@ -809,7 +902,7 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `error_analysis.py` | False positives and negatives of the cross-validation, self-report rule baseline |
 | `docs/make_figures.py` | Figures of this report |
 | `data-processing.ipynb`, `Develop/Train_and_evaluate.ipynb` | Thin notebooks |
-| `tests/` | 5 test files (currently passing: 13 + 7 + 9 + 17 + 10) |
+| `tests/` | 5 test files (currently passing: 13 + 7 + 9 + 17 + 12) |
 
 ### 12.4 Tests
 ```bash

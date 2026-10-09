@@ -78,7 +78,9 @@ python -u run_experiments.py lean2 lean only_PHQ all --seeds 42 43 44 --device c
 python -u cv_ft.py --repeat 0 --outer 0 --device cuda:0      # one job per (repeat 0..2, outer fold 0..4)
 python -u cv_all.py --repeats 3 --shard 0 1 --device cuda:0
 python -u cv_tfidf.py --repeats 3
+python -u cv_all.py --configs context_only only_SIM only_LSM only_OWN_LIWC only_BEHAVIOR only_LSMX_no_par --repeats 3 --shard 0 1 --device cuda:0  # single feature groups
 python cv_significance.py --repeats 3
+python feature_group_analysis.py                             # curves, delays and error profiles of the feature groups
 python error_analysis.py                                     # aggregates to docs/figures/, excerpts stay in Results/
 python error_analysis.py lean2_without_RE                    # same for another model (outputs get a suffix)
 
@@ -99,6 +101,7 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `embed_posts.py`, `finetune_mental.py` | MentalRoBERTa baselines |
 | `cv_splits.py`, `cv_ft.py`, `cv_all.py`, `cv_tfidf.py`, `cv_significance.py` | repeated cross-validation, TF-IDF baseline, paired tests |
 | `error_analysis.py` | false positives and negatives, self-report rule baseline |
+| `feature_group_analysis.py` | AUC after n posts, detection delay and error profile of each feature group |
 | `benchmark.py` | per-post inference cost (`docs/benchmark_results.json`) |
 | `docs/` | `SYSTEM_REPORT_EN.md` (full report, with PDF), figure and PDF scripts |
 | `tests/` | synthetic-data checks |

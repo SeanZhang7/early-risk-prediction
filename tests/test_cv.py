@@ -1,4 +1,4 @@
-"""Checks for the repeated cross-validation helpers (cv_splits, cv_all, cv_tfidf, cv_significance) on synthetic data.
+"""Checks for the repeated cross-validation helpers (cv_splits, cv_all, cv_tfidf, error_analysis, feature_group_analysis, cv_significance) on synthetic data.
 
 Run: conda run -n hongyi python tests/test_cv.py
 """
@@ -21,6 +21,7 @@ import cv_significance as cs
 import cv_splits
 import cv_tfidf
 import error_analysis as ea
+import feature_group_analysis as fg
 import experiment as ex
 from feature_cols import EXPERIMENTS_V2
 from paths import Paths
@@ -164,6 +165,23 @@ def test_error_majority_and_rule_baseline():
     labels = pd.Series([1, 0, 1], index=["a", "b", "c"])
     r = ea.rule_baseline(posts, labels).iloc[0]
     assert r["tp"] == 1 and r["fp"] == 0 and r["fn"] == 1 and r["median_delay"] == 2
+
+
+def test_group_analysis_cumulative_rates_and_delay_table():
+    y = np.array([1, 1, 1, 0, 0, 0])
+    delay = np.array([2, 10, 0, 0, 5, 0])
+    assert fg._metric("recall", y, None, delay, 5, None) == 1 / 3
+    assert fg._metric("recall", y, None, delay, 10, None) == 2 / 3
+    assert fg._metric("fpr", y, None, delay, 4, None) == 0 and fg._metric("fpr", y, None, delay, 5, None) == 1 / 3
+    rep = {"users": np.arange(6), "y": y, "pn": np.zeros((6, len(fg.NS))), "delay": delay}
+    row = fg.delay_table({"a": [rep] * 3}).iloc[0]
+    assert row["tp_flagged_within_10"] == 1.0 and row["median_delay"] == 6 and abs(row["recall"] - 2 / 3) < 1e-9
+    assert abs(row["precision"] - 2 / 3) < 1e-9
+
+
+def test_group_pairs_are_a_separate_family_without_overlap():
+    assert not (set(cs.PAIRS_GROUPS) & set(cs.PAIRS)) and not (set(cs.PAIRS_GROUPS) & set(cs.PAIRS_BASELINE))
+    assert "context_only" in EXPERIMENTS_V2 and not (set(EXPERIMENTS_V2["context_only"]) & cv_all.FORBIDDEN)
 
 
 if __name__ == "__main__":
