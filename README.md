@@ -43,7 +43,10 @@ environment variables, see `paths.py`):
 - `Data/all_combined/` raw thread JSON files (`ERISK_THREADS_DIR`)
 - `Data/shuffled_ground_truth_labels.txt` user id → 0/1 (`ERISK_LABELS_FILE`)
 
-`splits/user_split.csv` is the fixed user-level train/test assignment (712 / 179 users) and is tracked.
+`splits/user_split.csv` is the fixed user-level train/test assignment (712 / 179 users) of the single-split experiments.
+It lists user ids with labels and is therefore not distributed; if it is missing, `data_prep.load_or_create_user_split`
+creates a new stratified split (seed 42), which differs from the one used in the report. The repeated cross-validation
+does not use this file (its folds are drawn over all users with seed 2025).
 
 ## Setup
 

@@ -12,7 +12,7 @@ Layout written by data-processing.ipynb (version "v2"):
   Results/v2/parts/{split}_{lsm,re,sim,phq9}.pickle
   Features/v2/{split}_features.pkl          final model input
   models/v2/re_fold{k}_Dep{0,1}_LM          cross-fitted relative-entropy language models
-  splits/user_split.csv                     fixed user -> train/test assignment (tracked in git)
+  splits/user_split.csv                     fixed user -> train/test assignment (not distributed: contains labels)
 """
 
 import os
