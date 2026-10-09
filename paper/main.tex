@@ -22,12 +22,14 @@ A Repeated Cross-Validation and Error Analysis on Reddit Users}
 \maketitle
 
 \begin{abstract}
-Early depression detection systems are usually evaluated on a single train/test split with few positive users, so it remains unclear what individual linguistic features contribute and which users they fail on.
-Using 5$\times$3 repeated cross-validation over 891 Reddit users (102 depressed) of the eRisk 2025 Task~2 collection, a causal Transformer over per-post features, a decision rule chosen without touching held-out users, and family-wise paired tests, we compare feature groups (PHQ-9 item similarity, LIWC categories, language style matching, similarity to the parent text, posting behaviour) against a control that only knows post position and volume.
-PHQ-9 similarity is the strongest single group (ROC-AUC 0.952); adding LIWC or style-matching features gives no significant gain, while position and volume alone already reach 0.662.
-Text-based groups rank users after a single post, whereas style matching needs several.
-An adapter-tuned MentalRoBERTa is best (0.963) and clearly better than frozen embeddings and TF-IDF.
-Error analysis shows that stronger groups miss users whose evidence is diluted in long histories, whereas semantic groups flag users who write about depression without being labelled depressed.
+Early depression detection systems are usually compared on a single split with few positive users, so it remains unclear what individual linguistic features contribute, how early they help, and which users they fail on.
+We analyse feature groups (PHQ-9 item similarity, LIWC categories, language style matching, parent-text similarity, posting behaviour) with a shared causal Transformer, using 5$\times$3 repeated cross-validation over 891 Reddit users (102 labelled depressed), alarm rules chosen only on training users, and family-wise corrected paired tests.
+PHQ-9 similarity is the strongest single group (ROC-AUC 0.952, PR-AUC 0.742) and is significantly better than both style-matching variants; its advantage over LIWC is smaller and less robust across tests, and groups added to it give no significant gain.
+A control that knows only post position and volume already reaches ROC-AUC 0.662.
+Text-based groups rank users after one post, whereas style matching needs several.
+An adapter-tuned MentalRoBERTa has the best scores (ROC-AUC 0.963) and is better than TF-IDF and, more narrowly, frozen embeddings, but its advantage over a 74-feature combination is not significant after correction.
+Users missed by the stronger groups have little mental-health vocabulary in their histories, a pattern we describe without a causal claim.
+Because labels come from self-reported diagnoses, ``early'' means after fewer posts, not before disclosure or onset.
 \end{abstract}
 
 \section{Introduction}
@@ -42,7 +44,9 @@ First, positives are rare: the collection we use has 102 depressed users among 8
 Second, depressed users write much more: the median depressed user has 525 posts, the median control user 216.
 Position and volume of posts are therefore informative on their own, and any claim about a linguistic feature needs a control that knows nothing but position and volume.
 Third, labels come from self-reported diagnoses, so errors are not necessarily model errors, and the kinds of users that features miss or wrongly flag are informative about what the features measure.
+Throughout, \emph{depressed} and \emph{control} denote these collection labels, not independently established clinical states \citep{chancellor2020methods}, and the disclosure statements remain in the histories: \emph{early} means after fewer observed posts, not before disease onset or before a user's first disclosure.
 
+We separate three kinds of evidence that can lead to different conclusions: \emph{standalone} signal (does a group beat the control for position and volume?), \emph{incremental} signal (does it add to a stronger group?) and \emph{early} signal (is it available after few posts?).
 We therefore ask four questions.
 \textbf{RQ1:} which feature groups carry signal beyond post position and volume?
 \textbf{RQ2:} how early does each group detect?
@@ -116,6 +120,7 @@ We also report ROC-AUC and PR-AUC of the maximum probability of a user, AUC afte
 \paragraph{Per-post feature groups.}
 Every group is described by features of the current post plus history features (running maximum and minimum, their difference, change from the previous post, rolling standard deviation over 5 posts, running mean), standardised with training statistics and clipped to $\pm10$.
 \textbf{PHQ} (28 features including context): cosine similarity between a post and nine first-person archetype sentences, one per PHQ-9 item (Appendix~\ref{app:phq}), computed with mxbai-embed-large-v1 \citep{lee2024mxbai,li2023angle} following \citet{lahnala2025unifying}, their mean, and running maxima per item.
+These are similarities inspired by symptoms, not observed PHQ responses or validated estimates of severity.
 \textbf{LIWC} (33): rates of 15 categories in the post's own text (e.g.\ sadness, anxiety, health, negative emotion, first-person singular) from LIWC2015 \citep{pennebaker2015liwc}.
 \textbf{LSM} (73): language style matching \citep{ireland2010language} between a comment and its parent on ten LIWC-based scores, $1-|a-b|/(a+b+\epsilon)$ per category, computed on word counts, as in our initial pipeline, which mixes in text length.
 \textbf{LSM alignment} (43): the same score on word rates, plus the signed difference of the group rates between comment and parent.
@@ -124,6 +129,16 @@ Every group is described by features of the current post plus history features (
 LSM, alignment and cosine similarity exist only for comments whose parent text is known (about 60\% of the rows).
 In every single-group run we add three \textbf{context} features: log post index, comment indicator and parent-known indicator.
 \textbf{Context only} uses just these three and is our control for position and volume.
+
+\paragraph{Style matching.}
+For a comment and its parent, count LSM scores each LIWC category $c$ with word counts $a_c,b_c$ as $1-|a_c-b_c|/(a_c+b_c+\epsilon)$ and averages the categories into ten groups $G$ (function words, social, positive, negative, four person and pronoun groups, cognitive, perceptual).
+The alignment variant uses category rates $r_c$ (comment) and $q_c$ (parent):
+\begin{align*}
+m_G &= \tfrac{1}{|G|}\textstyle\sum_{c\in G}\bigl(1-\tfrac{|r_c-q_c|}{r_c+q_c+10^{-6}}\bigr),\\
+\delta_G &= \tfrac{1}{|G|}\textstyle\sum_{c\in G}(r_c-q_c).
+\end{align*}
+Two zero rates give a score of one, which can make sparse texts look aligned, and normalisation does not remove topical or interaction-selection effects.
+Counts mix in text length; we keep this variant as an empirical comparator, not as canonical LSM.
 
 \paragraph{Sequence model.}
 A linear projection feeds a 3-layer Transformer encoder (hidden size 256, 4 heads, dropout 0.3, 4.0M parameters) with a causal mask, so the output after post $t$ depends only on posts $1..t$ \citep{vaswani2017attention}.
@@ -202,8 +217,9 @@ After 500 posts the false-alarm rate on control users is under 6\% for PHQ and L
 Adding three LIWC categories to PHQ, additionally four LSM scores, or the LSM alignment features (74 features in total) does not change ROC-AUC or PR-AUC significantly relative to PHQ alone (74 features against PHQ: $\Delta$ROC $+.001$, $\Delta$PR $+.010$, Holm $p=1$; Tables~\ref{tab:results} and~\ref{tab:key}).
 The four-score variant is slightly better than the alignment variant in ROC-AUC (Holm $p=.042$, not significant under Nadeau--Bengio).
 The adapter-tuned MentalRoBERTa is best overall (ROC-AUC .963, PR-AUC .792, F1 .788).
-It is better than frozen embeddings ($\Delta$ROC $+.024$, $\Delta$PR $+.065$, $\Delta$F1 $+.059$; Holm $p=.004$, $.045$, $.018$) and than TF-IDF ($+.049$, $+.111$, $+.073$; $p\le.004$).
+It is better than TF-IDF ($\Delta$ROC $+.049$, $\Delta$PR $+.111$, $\Delta$F1 $+.073$; Holm $p\le.004$) and, more narrowly, than frozen embeddings ($+.024$, $+.065$, $+.059$; $p=.004$, $.045$, $.018$; the PR-AUC difference has Nadeau--Bengio $p=.057$).
 Against the 74-feature hand-crafted set the difference is borderline: $\Delta$ROC $+.010$, $\Delta$PR $+.039$, $\Delta$F1 $+.065$, with unadjusted bootstrap $p=.032$, $.135$, $.011$ and Holm $p=.19$, $.81$, $.088$.
+This does not establish equivalence: an F1 gap of .065 may matter in practice.
 TF-IDF ranks users worse (ROC-AUC .914) but has the highest AUC@10 (.902) and the shortest delay.
 The self-report rule reaches F1 .783, close to the adapter-tuned model (.788), but alarms much later (median 55 posts against 9.5): the learned models mainly gain earliness.
 
@@ -227,7 +243,8 @@ The groups err on different users (Figure~\ref{fig:errors}).
 The false-negative sets overlap strongly between PHQ and PHQ with LIWC (Jaccard .89, the combination mostly inherits PHQ's misses), moderately between PHQ and LIWC (.56), and little between PHQ and LSM alignment (.27) or the adapter-tuned model (.36); false-positive sets overlap much less (.07 to .26 between groups).
 
 \paragraph{False negatives.}
-Users missed by the stronger groups have long histories with diluted evidence: the median is 622 posts for PHQ and LIWC (854 for the adapter), and only 5\% of their posts contain mental-health terms.
+Users missed by the stronger groups have long histories with sparse evidence: the median is 622 posts for PHQ and LIWC (854 for the adapter), and only 5\% of their posts contain mental-health terms (adapter: 2.8\% against 15.5\% for its true positives, unadjusted $p<.001$).
+The history length itself does not differ significantly between the adapter's false negatives and true positives (854 against 464 posts, $p=.236$), so this is an evidence-density pattern, not a demonstrated effect of length.
 Reading the highest-scoring posts of the 20 users missed by the adapter-tuned model, 17 contain a first-person statement of a diagnosis or of ongoing depression, which the post-level model scores highly; the sequence model does not keep such isolated evidence, and 15 of the 20 never reach the threshold.
 Weaker groups also miss users with shorter histories (304 posts for LSM alignment, 336 for behaviour).
 
@@ -246,7 +263,7 @@ With 23, 25 and 54 depressed users per bin these values are indicative.
 \begin{table}[t]
 \centering\footnotesize
 \resizebox{\columnwidth}{!}{\input{tab_length.tex}}
-\caption{Recall and false-alarm rate by number of posts per user (users in parentheses); decisions as in Table~\ref{tab:errors}.}
+\caption{Recall of depressed users (false-alarm rate of control users) by number of posts per user (depressed/control users in parentheses); decisions as in Table~\ref{tab:errors}.}
 \label{tab:length}
 \end{table}
 
@@ -255,6 +272,8 @@ Depressed users without a self-report phrase are harder for every configuration 
 
 \section{Discussion}
 
+Standalone, incremental and early signal lead to different conclusions.
+Style matching improves over the control but not demonstrably over PHQ with LIWC; PHQ leads the single groups in full-history ranking, whereas TF-IDF has the highest AUC@10 among the references; a ranking winner need not be an early-alarm winner.
 PHQ similarity is the strongest and among the earliest signals, and it gains nothing from the other groups we tested.
 This is consistent with its construction: it scores each post against symptom statements and therefore responds to symptom-like content from the first post on.
 LIWC categories give a coarser lexical version of this signal.
@@ -269,7 +288,9 @@ Because labels are derived from self-reported diagnoses, the results describe th
 \section{Conclusion}
 
 In a repeated cross-validation over 891 Reddit users, PHQ-9 item similarity is the strongest single feature group, features beyond it add no significant gain, post position and volume are a necessary control, text-based groups detect from the first post whereas style matching needs several, and an adapter-tuned encoder is best but not significantly better than hand-crafted features after correction.
-Groups fail on different users, and the misses and false alarms point to evidence dilution (recall of the text systems falls as histories grow) and to topic.
+Groups fail on different users, but distinct errors do not guarantee useful fusion: adding the hand-crafted features does not improve the adapter.
+Misses are associated with sparse mental-health evidence in long histories (recall of the text systems falls as histories grow), and false alarms with topic; both are descriptive.
+The results support feature analysis, not a claim of state-of-the-art detection, and they concern users who disclosed a diagnosis.
 
 \section*{Limitations}
 
@@ -279,7 +300,10 @@ We use one sequence-model seed and one adapter run per outer fold; hyper-paramet
 The alarm rule is chosen on single-model out-of-fold probabilities but applied to averaged models, which may shift threshold-based metrics slightly.
 A relative-entropy feature is not evaluated because it needs nested refitting.
 The categories of errors come from one reader who read the highest-scoring posts of each user, and the keyword patterns are not validated.
-Delay differences are descriptive.
+Delay differences are descriptive and involve different sets of detected users.
+Peak ranking rewards observation opportunity, and fixed-prefix AUC keeps the final score of shorter histories instead of using a common-length cohort.
+Adapter logits are cross-fitted inside each outer training set and reused across the classifier's inner folds, so the inner procedure is not a fully nested end-to-end selection.
+PHQ extraction uses a 335M-parameter encoder, so a compact feature vector does not mean lower inference cost than MentalRoBERTa.
 We do not evaluate on the official eRisk test servers, which provide full conversational context.
 
 \section*{Ethical Considerations}
@@ -320,8 +344,7 @@ Bottleneck adapter and a two-class head on mental/mental-roberta-base (126.8M pa
 In the cross-validation three inner models are trained per outer fold on the outer training users; training users receive the logit of the inner model that did not see them, held-out users the mean of the three.
 
 \paragraph{TF-IDF.}
-Word 1--2-grams, minimum document frequency 5, at most 200{,}000 terms, sublinear tf, vocabulary fitted on the outer training text without labels; logistic regression ($C=1$, user-weighted, class-balanced).
-$C$ was compared among 0.1, 0.3, 1 and 3 on the inner out-of-fold $F_{\mathrm{lat}}$ of one outer fold only.
+Word 1--2-grams, minimum document frequency 5, at most 200{,}000 terms, sublinear tf, vocabulary fitted on the outer training text without labels; logistic regression ($C=1$, user-weighted, class-balanced); $C$ was fixed and not tuned.
 
 \paragraph{Single split versus cross-validation.}
 On a fixed split with 21 test positives, the 74-feature set reached PR-AUC .831 on the test users, against .753 pooled over all users in the cross-validation; single-split estimates of this kind are optimistic.

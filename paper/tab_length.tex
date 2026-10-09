@@ -1,17 +1,15 @@
-\begin{tabular}{lcccccc}
+\begin{tabular}{lccc}
 \toprule
-& \multicolumn{3}{c}{Recall (depressed)} & \multicolumn{3}{c}{False alarms (controls)} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Posts per user & $<$100 (23) & 100--499 (25) & $\geq$500 (54) & $<$100 (280) & 100--499 (243) & $\geq$500 (266) \\
+Posts per user & <100 (23/280) & 100--499 (25/243) & $\geq$500 (54/266) \\
 \midrule
-PHQ & .609 & .880 & .759 & .021 & .053 & .045 \\
-LIWC & .609 & .760 & .704 & .050 & .062 & .045 \\
-LSM (counts) & .391 & .840 & .667 & .029 & .099 & .109 \\
-LSM alignment & .435 & .760 & .685 & .071 & .132 & .117 \\
-Behaviour & .391 & .480 & .630 & .050 & .128 & .192 \\
-PHQ + 3 LIWC & .696 & .880 & .741 & .021 & .058 & .053 \\
-MentalRoBERTa frozen & .913 & .800 & .667 & .032 & .058 & .026 \\
-MentalRoBERTa adapter & .870 & .840 & .759 & .014 & .041 & .026 \\
-TF-IDF & .870 & .760 & .574 & .025 & .049 & .011 \\
+PHQ & .609 (.021) & .880 (.053) & .759 (.045) \\
+LIWC & .609 (.050) & .760 (.062) & .704 (.045) \\
+LSM (counts) & .391 (.029) & .840 (.099) & .667 (.109) \\
+LSM alignment & .435 (.071) & .760 (.132) & .685 (.117) \\
+Behaviour & .391 (.050) & .480 (.128) & .630 (.192) \\
+PHQ + 3 LIWC & .696 (.021) & .880 (.058) & .741 (.053) \\
+MentalRoBERTa frozen & .913 (.032) & .800 (.058) & .667 (.026) \\
+MentalRoBERTa adapter & .870 (.014) & .840 (.041) & .759 (.026) \\
+TF-IDF & .870 (.025) & .760 (.049) & .574 (.011) \\
 \bottomrule
 \end{tabular}

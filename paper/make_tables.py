@@ -128,24 +128,19 @@ def lengthtable():
     bins = ["<100", "100-499", ">=500"]
     n = d[d.config == "only_PHQ"].set_index("posts")
 
-    def lab(b, col):
-        return b.replace("<", "$<$").replace(">=", "$\\geq$").replace("-", "--") + f" ({int(n.loc[b, col])})"
+    def lab(b):
+        return b.replace(">=", "$\\geq$").replace("-", "--") + f" ({int(n.loc[b, 'n_depressed'])}/{int(n.loc[b, 'n_control'])})"
 
-    rows = [r"\toprule",
-            r"& \multicolumn{3}{c}{Recall (depressed)} & \multicolumn{3}{c}{False alarms (controls)} \\",
-            r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}",
-            "Posts per user & " + " & ".join(lab(b, "n_depressed") for b in bins) + " & "
-            + " & ".join(lab(b, "n_control") for b in bins) + " \\\\", r"\midrule"]
+    rows = [r"\toprule", "Posts per user & " + " & ".join(lab(b) for b in bins) + " \\\\", r"\midrule"]
     for c in ["only_PHQ", "only_OWN_LIWC", "only_LSM", "only_LSMX_no_par", "only_BEHAVIOR", "lean_PHQ_plus_LIWC", "mental_emb",
               "ft_logit", "tfidf_lr"]:
         x = d[d.config == c].set_index("posts")
-        rows.append(f"{SHORT[c]} & " + " & ".join(f3(x.loc[b, "recall"]) for b in bins) + " & "
-                    + " & ".join(f3(x.loc[b, "false_alarm_rate"]) for b in bins) + " \\\\")
+        rows.append(f"{SHORT[c]} & " + " & ".join(f"{f3(x.loc[b, 'recall'])} ({f3(x.loc[b, 'false_alarm_rate'])})" for b in bins) + " \\\\")
     rows.append(r"\bottomrule")
     return "\n".join(rows)
 
 
-SPECS = {"tab_results": "lrccccc", "tab_early": "lccccc", "tab_errors": "lccccccrr", "tab_pairs": "llrcccrccrcc", "tab_key": "lccc", "tab_length": "lcccccc"}
+SPECS = {"tab_results": "lrccccc", "tab_early": "lccccc", "tab_errors": "lccccccrr", "tab_pairs": "llrcccrccrcc", "tab_key": "lccc", "tab_length": "lccc"}
 
 
 if __name__ == "__main__":
