@@ -1,16 +1,16 @@
-\begin{tabular}{lccccccrr}
+\begin{tabular}{lccccccccc}
 \toprule
-& & & \multicolumn{2}{c}{False negatives} & \multicolumn{2}{c}{False positives} & \multicolumn{2}{c}{Recall by self-report} \\
-\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
-Configuration & FN & FP & Posts & SR & Posts & SR & with & without \\
+& & & \multicolumn{3}{c}{False negatives} & \multicolumn{2}{c}{False positives} & \multicolumn{2}{c}{Recall by self-report} \\
+\cmidrule(lr){4-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+Configuration & FN & FP & Posts & MH & SR & Posts & SR & with & without \\
 \midrule
-PHQ & 25 & 31 & 622 & 64\% & 412 & 23\% & 0.81 & 0.53 \\
-LIWC & 31 & 41 & 622 & 58\% & 231 & 20\% & 0.78 & 0.32 \\
-LSM (counts) & 36 & 61 & 546 & 67\% & 483 & 18\% & 0.71 & 0.37 \\
-LSM alignment & 36 & 83 & 304 & 67\% & 368 & 13\% & 0.71 & 0.37 \\
-Behaviour & 47 & 96 & 336 & 72\% & 660 & 7\% & 0.59 & 0.32 \\
-PHQ + 3 LIWC & 24 & 34 & 746 & 62\% & 416 & 21\% & 0.82 & 0.53 \\
-MentalRoBERTa adapter & 20 & 21 & 854 & 60\% & 241 & 38\% & 0.86 & 0.58 \\
-TF-IDF & 32 & 22 & 954 & 69\% & 172 & 27\% & 0.73 & 0.47 \\
+PHQ & 25 & 31 & 622 & 5.1\% & 64\% & 412 & 23\% & 0.81 & 0.53 \\
+LIWC & 31 & 41 & 622 & 5.3\% & 58\% & 231 & 20\% & 0.78 & 0.32 \\
+LSM (counts) & 36 & 61 & 546 & 9.5\% & 67\% & 483 & 18\% & 0.71 & 0.37 \\
+LSM alignment & 36 & 83 & 304 & 11.5\% & 67\% & 368 & 13\% & 0.71 & 0.37 \\
+Behaviour & 47 & 96 & 336 & 12.6\% & 72\% & 660 & 7\% & 0.59 & 0.32 \\
+PHQ + 3 LIWC & 24 & 34 & 746 & 3.1\% & 62\% & 416 & 21\% & 0.82 & 0.53 \\
+MentalRoBERTa adapter & 20 & 21 & 854 & 2.8\% & 60\% & 241 & 38\% & 0.86 & 0.58 \\
+TF-IDF & 32 & 22 & 954 & 3.2\% & 69\% & 172 & 27\% & 0.73 & 0.47 \\
 \bottomrule
 \end{tabular}

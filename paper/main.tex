@@ -69,7 +69,7 @@ Early detection systems include the text classification framework of \citet{burd
 \paragraph{Linguistic and psychometric signals.}
 \citet{decho2013predicting} predicted depression from social media with behavioural and linguistic features, and \citet{coppersmith-etal-2014-quantifying} and \citet{yates-etal-2017-depression} built corpora around self-reported diagnoses.
 We use signals with a psychological motivation: similarity to the items of the PHQ-9 questionnaire \citep{kroenke2001phq}, scored with the embedding-similarity item scoring of \citet{lahnala2025unifying}; category rates from LIWC \citep{pennebaker2015liwc}; and language style matching between a comment and the text it replies to \citep{ireland2010language}.
-Mental-health encoders such as MentalRoBERTa \citep{ji-etal-2022-mentalbert} and parameter-efficient adapters \citep{houlsby2019parameter,pfeiffer-etal-2020-adapterhub,poth-etal-2023-adapters} serve as references.
+Mental-health encoders such as MentalRoBERTa, a RoBERTa model \citep{liu2019roberta} further pre-trained on mental-health posts \citep{ji-etal-2022-mentalbert}, and parameter-efficient adapters \citep{houlsby2019parameter,pfeiffer-etal-2020-adapterhub,poth-etal-2023-adapters} serve as references.
 
 \paragraph{Validity of evaluation.}
 Proxy labels have limited external validity \citep{ernala2019methodological,harrigian-etal-2020-models}, available datasets differ in quality \citep{harrigian-etal-2021-state}, and studies rarely validate their methodology \citep{chancellor2020methods}.
@@ -80,7 +80,7 @@ We follow these recommendations with repeated cross-validation, a selection of t
 
 \paragraph{Data.}
 We use the labelled collection released for eRisk 2025 Task~2: Reddit users with the submissions and comments they wrote, the text they replied to, and a label stating whether the user explicitly mentioned a depression diagnosis \citep{parapar2025overview}.
-The release has 909 users; we drop empty and posts whose text was removed or deleted, after which 18 control users have no post left, giving 891 users (102 depressed) and 343{,}153 posts, without truncation or down-sampling.
+The release has 909 users; we drop empty posts and posts whose text was removed or deleted, after which 18 control users have no post left, giving 891 users (102 depressed) and 343{,}153 posts, without truncation or down-sampling.
 Table~\ref{tab:data} summarises the data.
 Depressed users write more posts, longer posts, over longer periods, and more of their posts are comments with a known parent text.
 
@@ -122,7 +122,7 @@ Every group is described by features of the current post plus history features (
 \textbf{PHQ} (28 features including context): cosine similarity between a post and nine first-person archetype sentences, one per PHQ-9 item (Appendix~\ref{app:phq}), computed with mxbai-embed-large-v1 \citep{lee2024mxbai,li2023angle} following \citet{lahnala2025unifying}, their mean, and running maxima per item.
 These are similarities inspired by symptoms, not observed PHQ responses or validated estimates of severity.
 \textbf{LIWC} (33): rates of 15 categories in the post's own text (e.g.\ sadness, anxiety, health, negative emotion, first-person singular) from LIWC2015 \citep{pennebaker2015liwc}.
-\textbf{LSM} (73): language style matching \citep{ireland2010language} between a comment and its parent on ten LIWC-based scores, $1-|a-b|/(a+b+\epsilon)$ per category, computed on word counts, as in our initial pipeline, which mixes in text length.
+\textbf{LSM} (73): language style matching \citep{ireland2010language} between a comment and its parent on ten LIWC-based group scores computed on word counts, as in our initial pipeline (defined below).
 \textbf{LSM alignment} (43): the same score on word rates, plus the signed difference of the group rates between comment and parent.
 \textbf{Cosine similarity} (10): similarity of sentence embeddings (all-MiniLM-L6-v2; \citealp{reimers-gurevych-2019-sentence}) between a comment and its parent.
 \textbf{Behaviour} (9): log word count, posting between 00:00 and 05:59 UTC, log time since the previous post.
@@ -161,8 +161,9 @@ A relative-entropy feature from language models fitted on depressed and control 
 All configurations share splits and seeds.
 
 Metrics are means over the three repeats, with 95\% intervals from a stratified bootstrap over users (2000 draws, identical for all configurations, repeats averaged inside each draw).
-Differences are tested in three pre-specified families (9 comparisons among references; 4 against the TF-IDF baseline; 9 among feature groups and against the control) with two-sided bootstrap $p$-values of the mean difference and Holm adjustment inside each family.
-Nadeau--Bengio corrected resampled $t$-tests, DeLong tests and McNemar tests are in Appendix~\ref{app:pairs}.
+Differences are tested in three pre-specified families (9 comparisons among references; 4 against the TF-IDF baseline; 9 among feature groups and against the control) with two-sided bootstrap $p$-values of the mean difference and Holm adjustment inside each family \citep{holm1979simple}.
+With 2000 draws the smallest attainable $p$ is $1/2001$, so Holm-adjusted values of .004 (families of nine) and .002 (four) mean $p$ at the resolution limit.
+Nadeau--Bengio corrected resampled $t$-tests \citep{nadeau2003inference}, DeLong tests \citep{delong1988comparing} and McNemar tests \citep{mcnemar1947note} are in Appendix~\ref{app:pairs}.
 Error analysis uses the decisions of the three repeats: a user is an error of a configuration if it is misclassified in at least two of them.
 
 \section{Results}
@@ -172,7 +173,7 @@ Error analysis uses the decisions of the three repeats: a user is an error of a 
 \begin{table*}[t]
 \centering\small
 \input{tab_results.tex}
-\caption{5$\times$3 cross-validation over 891 users (102 depressed): mean over repeats with 95\% bootstrap intervals for ROC-AUC and PR-AUC (prevalence 0.114); AUC@10 intervals are about $\pm$0.04. \#feat.\ includes three context features. F$_{\mathrm{lat}}$ is the latency-weighted F1. The last row is not a cross-validated model.}
+\caption{5$\times$3 cross-validation over 891 users (102 depressed): mean over repeats with 95\% bootstrap intervals for ROC-AUC and PR-AUC (prevalence 0.114); AUC@10 intervals are about $\pm$0.04. \#feat.\ includes three context features. F$_{\mathrm{lat}}$ is the latency-weighted F1. We call PHQ + 3 LIWC + LSM alignment the 74-feature set. The last row is not a cross-validated model; its ROC-AUC and PR-AUC rank users by the number of matching posts.}
 \label{tab:results}
 \end{table*}
 
@@ -187,30 +188,32 @@ The differences in ROC-AUC between PHQ and the other groups, and between each gr
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{fig_curves.pdf}
-\caption{Left: AUC after $n$ posts. Middle and right: share of depressed and of control users flagged within $n$ posts under the rule chosen in each outer fold. Solid: single feature groups; dashed: references. Bands: 95\% bootstrap intervals.}
+\caption{Left: AUC after $n$ posts (score after the last post for users with fewer posts). Middle and right: share of depressed and of control users flagged within $n$ posts under the rule chosen in each outer fold. Solid: single feature groups; dashed: PHQ + 3 LIWC and the references. Bands: 95\% bootstrap intervals (500 draws).}
 \label{fig:curves}
 \end{figure*}
 
 \begin{table*}[t]
 \centering\small
 \resizebox{0.85\textwidth}{!}{\input{tab_early.tex}}
-\caption{Earliness. Flagged $\leq$10: share of all depressed users flagged within 10 posts. Precision and delay are over the decisions of the chosen rule; delay is over detected depressed users.}
+\caption{Earliness. Flagged $\leq$10: share of all depressed users flagged within 10 posts. Precision and delay are over the decisions of the chosen rule; delay is the median over detected depressed users, averaged over repeats.}
 \label{tab:early}
 \end{table*}
 
 After a single post (Figure~\ref{fig:curves}, left; Table~\ref{tab:early}), LIWC (AUC .763) and PHQ (.748) already rank users, as do behaviour (.702) and the two references that read the post text (.80--.82), whereas LSM, LSM alignment and cosine similarity are at .53--.56: they exist only for comments with a known parent and need several posts to accumulate.
 At 10 posts PHQ reaches .875 and LIWC .847; at 100 posts PHQ (.922) is close to the adapter-tuned encoder (.936).
 Among the informative groups, LIWC alarms earliest (median delay 14 posts, 44\% of its detected users within 10 posts) but is less precise than PHQ (.613 against .699); LSM counts is slowest (median 40 posts).
-The combination of PHQ and three LIWC categories alarms earlier than either (median 10.3 posts) at PHQ's precision, but this is descriptive: we do not test delay differences.
+The combination of PHQ and three LIWC categories alarms earlier than either (median 10.3 posts) at PHQ's precision; this comparison was not pre-specified.
 TF-IDF and the encoders alarm earliest (median 5.7 to 9.5 posts).
+Among the pre-specified tests of the median delay, TF-IDF alarms earlier than the adapter, the frozen encoder, PHQ and the 74-feature set (by 3.8, 2.7, 8.3 and 10.7 posts; Holm $p=.002$), LSM counts later than PHQ (26 posts; $p=.004$), and PHQ and LIWC do not differ (Holm $p=1$).
+Delays are medians over different sets of detected users, so these differences mix speed with who is detected.
 After 500 posts the false-alarm rate on control users is under 6\% for PHQ and LIWC, about 11\% for behaviour and LSM alignment, and 68\% for the context-only rule (Figure~\ref{fig:curves}, right).
 
 \subsection{Beyond PHQ, and encoders (RQ3)}
 
 \begin{table}[t]
-\centering\footnotesize
+\centering\scriptsize\setlength{\tabcolsep}{3pt}
 \resizebox{\columnwidth}{!}{\input{tab_key.tex}}
-\caption{Key paired differences (mean over repeats; Holm-adjusted $p$ in parentheses). All 22 comparisons are in Appendix~\ref{app:pairs}.}
+\caption{Key paired differences (mean over repeats; Holm-adjusted $p$ in parentheses; .004 and .002 are the smallest attainable values). 74 feat.: PHQ + 3 LIWC + LSM alignment. All 22 comparisons are in Appendix~\ref{app:pairs}.}
 \label{tab:key}
 \end{table}
 
@@ -221,37 +224,37 @@ It is better than TF-IDF ($\Delta$ROC $+.049$, $\Delta$PR $+.111$, $\Delta$F1 $+
 Against the 74-feature hand-crafted set the difference is borderline: $\Delta$ROC $+.010$, $\Delta$PR $+.039$, $\Delta$F1 $+.065$, with unadjusted bootstrap $p=.032$, $.135$, $.011$ and Holm $p=.19$, $.81$, $.088$.
 This does not establish equivalence: an F1 gap of .065 may matter in practice.
 TF-IDF ranks users worse (ROC-AUC .914) but has the highest AUC@10 (.902) and the shortest delay.
-The self-report rule reaches F1 .783, close to the adapter-tuned model (.788), but alarms much later (median 55 posts against 9.5): the learned models mainly gain earliness.
+The self-report rule reaches F1 .783, close to the adapter-tuned model (.788), but alarms much later (median 55 posts against 9.5): within the observed histories the learned models mainly gain earliness, although the detected users differ, so this does not show that they alarm before each user's first disclosure.
 
 \subsection{Errors by feature group (RQ4)}
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{fig_errors.pdf}
-\caption{Left: misclassified users per configuration. Middle and right: overlap (Jaccard index) of the sets of false negatives and of false positives.}
+\caption{Left: misclassified users per configuration (wrong in $\ge2$ of 3 repeats). Middle and right: overlap (Jaccard index) of the sets of false negatives and of false positives. LSM-al.: LSM alignment; Beh.: behaviour; PHQ+L: PHQ + 3 LIWC; Adapter: adapter-tuned MentalRoBERTa.}
 \label{fig:errors}
 \end{figure*}
 
 \begin{table*}[t]
 \centering\small
 \resizebox{0.85\textwidth}{!}{\input{tab_errors.tex}}
-\caption{Misclassified users (wrong in $\ge2$ of 3 repeats). Posts: median posts per user; SR: share with a self-report phrase. Recall is split by whether a depressed user has a self-report phrase (83 users) or not (19 users).}
+\caption{Misclassified users (wrong in $\ge2$ of 3 repeats). Posts: median posts per user; MH: median share of posts with mental-health terms; SR: share with a self-report phrase. Recall is split by whether a depressed user has a self-report phrase (83 users) or not (19 users).}
 \label{tab:errors}
 \end{table*}
 
 The groups err on different users (Figure~\ref{fig:errors}).
-The false-negative sets overlap strongly between PHQ and PHQ with LIWC (Jaccard .89, the combination mostly inherits PHQ's misses), moderately between PHQ and LIWC (.56), and little between PHQ and LSM alignment (.27) or the adapter-tuned model (.36); false-positive sets overlap much less (.07 to .26 between groups).
+The false-negative sets overlap strongly between PHQ and PHQ with LIWC (Jaccard .89, the combination mostly inherits PHQ's misses), moderately between PHQ and LIWC (.56), and little between PHQ and LSM alignment (.27) or the adapter-tuned model (.36); false-positive sets overlap much less (.07 to .26 between groups, .37 between the two LSM variants).
 
 \paragraph{False negatives.}
 Users missed by the stronger groups have long histories with sparse evidence: the median is 622 posts for PHQ and LIWC (854 for the adapter), and only 5\% of their posts contain mental-health terms (adapter: 2.8\% against 15.5\% for its true positives, unadjusted $p<.001$).
 The history length itself does not differ significantly between the adapter's false negatives and true positives (854 against 464 posts, $p=.236$), so this is an evidence-density pattern, not a demonstrated effect of length.
-Reading the highest-scoring posts of the 20 users missed by the adapter-tuned model, 17 contain a first-person statement of a diagnosis or of ongoing depression, which the post-level model scores highly; the sequence model does not keep such isolated evidence, and 15 of the 20 never reach the threshold.
+Reading the highest-scoring posts of the 20 users missed by the adapter-tuned model, 17 contain a first-person statement of a diagnosis or of ongoing depression, which the post-level model scores highly; yet 15 of the 20 never reach the threshold, which suggests that the sequence model does not retain such isolated evidence (we did not test alternative pooling).
 Weaker groups also miss users with shorter histories (304 posts for LSM alignment, 336 for behaviour).
 
 \paragraph{False positives.}
 Semantic groups flag control users who write about depression: 23\%, 20\% and 18\% of the false positives of PHQ, LIWC and LSM match the self-report pattern, against 3.4\% of all control users (adapter: 38\%).
 In a reading of the false positives of the adapter-tuned model and of the 74-feature set, most flagged users describe their own depression, another condition, a chronic illness, everyday distress, or support others in mental-health communities (Appendix~\ref{app:errors}).
-Behaviour flags heavy posters (median 660 posts against 207 for true negatives; 7\% self-reports).
+Behaviour flags heavy posters (median 660 posts against 182 for its true negatives; 7\% self-reports).
 The alarm is usually raised on an unremarkable post and reflects the accumulated history.
 
 \paragraph{History length.}
@@ -261,8 +264,8 @@ Features that accumulate over the history thus need a minimum of posts, and text
 With 23, 25 and 54 depressed users per bin these values are indicative.
 
 \begin{table}[t]
-\centering\footnotesize
-\resizebox{\columnwidth}{!}{\input{tab_length.tex}}
+\centering\scriptsize\setlength{\tabcolsep}{3pt}
+\input{tab_length.tex}
 \caption{Recall of depressed users (false-alarm rate of control users) by number of posts per user (depressed/control users in parentheses); decisions as in Table~\ref{tab:errors}.}
 \label{tab:length}
 \end{table}
@@ -274,7 +277,7 @@ Depressed users without a self-report phrase are harder for every configuration 
 
 Standalone, incremental and early signal lead to different conclusions.
 Style matching improves over the control but not demonstrably over PHQ with LIWC; PHQ leads the single groups in full-history ranking, whereas TF-IDF has the highest AUC@10 among the references; a ranking winner need not be an early-alarm winner.
-PHQ similarity is the strongest and among the earliest signals, and it gains nothing from the other groups we tested.
+PHQ similarity is the strongest and among the earliest signals, and no other group we tested adds a significant gain to it.
 This is consistent with its construction: it scores each post against symptom statements and therefore responds to symptom-like content from the first post on.
 LIWC categories give a coarser lexical version of this signal.
 Style matching and parent similarity are properties of an exchange, are undefined for submissions and for comments without a parent, and need several posts; they also add little to PHQ.
@@ -300,7 +303,7 @@ We use one sequence-model seed and one adapter run per outer fold; hyper-paramet
 The alarm rule is chosen on single-model out-of-fold probabilities but applied to averaged models, which may shift threshold-based metrics slightly.
 A relative-entropy feature is not evaluated because it needs nested refitting.
 The categories of errors come from one reader who read the highest-scoring posts of each user, and the keyword patterns are not validated.
-Delay differences are descriptive and involve different sets of detected users.
+Delay differences are computed over different sets of detected users.
 Peak ranking rewards observation opportunity, and fixed-prefix AUC keeps the final score of shorter histories instead of using a common-length cohort.
 Adapter logits are cross-fitted inside each outer training set and reused across the classifier's inner folds, so the inner procedure is not a fully nested end-to-end selection.
 PHQ extraction uses a 335M-parameter encoder, so a compact feature vector does not mean lower inference cost than MentalRoBERTa.
@@ -347,7 +350,7 @@ In the cross-validation three inner models are trained per outer fold on the out
 Word 1--2-grams, minimum document frequency 5, at most 200{,}000 terms, sublinear tf, vocabulary fitted on the outer training text without labels; logistic regression ($C=1$, user-weighted, class-balanced); $C$ was fixed and not tuned.
 
 \paragraph{Single split versus cross-validation.}
-On a fixed split with 21 test positives, the 74-feature set reached PR-AUC .831 on the test users, against .753 pooled over all users in the cross-validation; single-split estimates of this kind are optimistic.
+On a fixed split with 21 test positives, the 74-feature set reached PR-AUC .820 on the test users (mean of three seeds; .831 with the relative-entropy feature), against .753 pooled over all users in the cross-validation; single-split estimates of this kind are optimistic.
 
 \paragraph{Artifacts and licences.}
 The eRisk data are used under the lab's user agreement and are not redistributed.
@@ -356,7 +359,7 @@ mental-roberta-base is used under CC BY-NC 4.0 for non-commercial research; all-
 Our own code and the archetype sentences will be released with the paper.
 
 \paragraph{Compute.}
-The cross-validation (15 outer folds, 17 configurations) and the adapter runs used two 24\,GB GPUs; the sequence models train in about a minute per outer fold.
+The cross-validation (15 outer folds, 15 configurations) and the adapter runs used two 24\,GB GPUs; the sequence models train in about a minute per outer fold.
 
 \section{Paired Tests}
 \label{app:pairs}
@@ -370,16 +373,16 @@ We therefore describe these as suggestive.
 \begin{table*}[t]
 \centering\scriptsize
 \resizebox{\textwidth}{!}{\input{tab_pairs.tex}}
-\caption{Pre-specified paired comparisons. Families: 1 references, 2 TF-IDF baseline, 3 feature groups and control. Differences are A $-$ B, mean over repeats.}
+\caption{Pre-specified paired comparisons. Families: 1 references, 2 TF-IDF baseline, 3 feature groups and control. Differences are A $-$ B, mean over repeats. 74 feat.: PHQ + 3 LIWC + LSM alignment; 4 LSM: four count-LSM scores. Holm values of .004 and .002 are the smallest attainable with 2000 draws.}
 \label{tab:pairs}
 \end{table*}
 
 \section{Self-Report Patterns}
 \label{app:sr}
 
-The self-report pattern matches first-person statements such as ``I have/had/was diagnosed with (a few words) depression'', ``my depression'', ``I'm depressed'' and ``diagnosed with (a few words) depression'' (case-insensitive).
+The self-report pattern matches first-person statements such as ``I have/had/suffer from/struggle with/deal with/was diagnosed with (up to two words) depression'', ``my depression'', ``I'm depressed'' and ``diagnosed with (up to two words) depression'' (case-insensitive).
 The mental-health vocabulary pattern covers terms such as depression, anxiety, therapy, psychiatric, antidepressant, suicide, bipolar, PTSD and self-harm.
-Both were fixed before the errors were inspected and are not validated; they miss phrasings such as ``I have chronic depression''.
+Both were fixed before the errors were inspected and are not validated; they miss phrasings such as ``I've been depressed'' or ``diagnosed with MDD''.
 
 \section{Error Categories}
 \label{app:errors}

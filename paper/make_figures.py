@@ -15,7 +15,7 @@ plt.rcParams.update({"font.size": 7, "axes.titlesize": 7.5, "axes.labelsize": 7,
                      "axes.spines.right": False, "pdf.fonttype": 42})
 
 LABELS = {"only_PHQ": "PHQ", "only_OWN_LIWC": "LIWC", "only_LSM": "LSM (counts)", "only_LSMX_no_par": "LSM alignment",
-          "only_BEHAVIOR": "behaviour", "only_SIM": "cosine sim.", "context_only": "context only",
+          "only_BEHAVIOR": "Behaviour", "only_SIM": "Cosine sim.", "context_only": "Context only",
           "lean_PHQ_plus_LIWC": "PHQ + 3 LIWC", "mental_emb": "MentalRoBERTa frozen", "ft_logit": "MentalRoBERTa adapter",
           "tfidf_lr": "TF-IDF"}
 COLORS = {"context_only": "#7f7f7f", "only_PHQ": "#1f77b4", "only_OWN_LIWC": "#2ca02c", "only_LSM": "#d62728",

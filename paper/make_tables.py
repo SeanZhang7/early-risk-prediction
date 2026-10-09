@@ -25,7 +25,7 @@ GROUPS = ["only_PHQ", "only_OWN_LIWC", "only_LSM", "only_LSMX_no_par", "only_BEH
 COMBOS = ["lean_PHQ_plus_LIWC", "lean_without_RE", "lean2_without_RE", "mental_emb", "ft_logit", "tfidf_lr"]
 SHORT = {"only_PHQ": "PHQ", "only_OWN_LIWC": "LIWC", "only_LSM": "LSM (counts)", "only_LSMX_no_par": "LSM alignment",
          "only_BEHAVIOR": "Behaviour", "only_SIM": "Cosine sim.", "context_only": "Context only",
-         "lean_PHQ_plus_LIWC": "PHQ + 3 LIWC", "lean_without_RE": "PHQ + LIWC + LSM", "lean2_without_RE": "PHQ + LIWC + LSM-al.",
+         "lean_PHQ_plus_LIWC": "PHQ + 3 LIWC", "lean_without_RE": "PHQ + 3 LIWC + 4 LSM", "lean2_without_RE": "74 feat.",
          "mental_emb": "MentalRoBERTa frozen", "ft_logit": "MentalRoBERTa adapter", "tfidf_lr": "TF-IDF",
          "ft_logit_plus_lean2_without_RE": "Adapter + 74 feat.", "mental_plus_lean2_without_RE": "Frozen + 74 feat."}
 
@@ -77,16 +77,20 @@ def early():
 
 
 def errs():
-    rows = [r"\toprule", r"& & & \multicolumn{2}{c}{False negatives} & \multicolumn{2}{c}{False positives} & \multicolumn{2}{c}{Recall by self-report} \\",
-            r"\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}",
-            r"Configuration & FN & FP & Posts & SR & Posts & SR & with & without \\", r"\midrule"]
+    rows = [r"\toprule", r"& & & \multicolumn{3}{c}{False negatives} & \multicolumn{2}{c}{False positives} & \multicolumn{2}{c}{Recall by self-report} \\",
+            r"\cmidrule(lr){4-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}",
+            r"Configuration & FN & FP & Posts & MH & SR & Posts & SR & with & without \\", r"\midrule"]
     for c in ["only_PHQ", "only_OWN_LIWC", "only_LSM", "only_LSMX_no_par", "only_BEHAVIOR", "lean_PHQ_plus_LIWC", "ft_logit", "tfidf_lr"]:
         e = errors.loc[c]
-        rows.append(f"{SHORT[c]} & {int(e.FN)} & {int(e.FP)} & {e.FN_median_posts:.0f} & {e.FN_self_report * 100:.0f}\\% & "
+        rows.append(f"{SHORT[c]} & {int(e.FN)} & {int(e.FP)} & {e.FN_median_posts:.0f} & {e.FN_share_mental_health * 100:.1f}\\% & {e.FN_self_report * 100:.0f}\\% & "
                     f"{e.FP_median_posts:.0f} & {e.FP_self_report * 100:.0f}\\% & {e.recall_with_self_report:.2f} & "
                     f"{e.recall_without_self_report:.2f} \\\\")
     rows.append(r"\bottomrule")
     return "\n".join(rows)
+
+
+def sd(x):
+    return f"{x:+.3f}".replace("-", "$-$")
 
 
 def pval(p):
@@ -100,9 +104,9 @@ def pairtable():
             r"Fam. & A $-$ B & $\Delta$ROC & Holm & NB & DeLong & $\Delta$PR & Holm & NB & $\Delta$F1 & Holm & McNemar \\", r"\midrule"]
     for _, r in pairs.iterrows():
         a, b = SHORT[r.A], SHORT[r.B]
-        rows.append(f"{int(r.family)} & {a} $-$ {b} & {r.d_roc:+.3f} & {pval(r.p_roc_holm)} & {pval(r.nb_p_roc)} & "
-                    f"{pval(r.delong_p_median)} & {r.d_pr:+.3f} & {pval(r.p_pr_holm)} & {pval(r.nb_p_pr)} & "
-                    f"{r.d_f1:+.3f} & {pval(r.p_f1_holm)} & {pval(r.mcnemar_p_median)} \\\\")
+        rows.append(f"{int(r.family)} & {a} $-$ {b} & {sd(r.d_roc)} & {pval(r.p_roc_holm)} & {pval(r.nb_p_roc)} & "
+                    f"{pval(r.delong_p_median)} & {sd(r.d_pr)} & {pval(r.p_pr_holm)} & {pval(r.nb_p_pr)} & "
+                    f"{sd(r.d_f1)} & {pval(r.p_f1_holm)} & {pval(r.mcnemar_p_median)} \\\\")
     rows.append(r"\bottomrule")
     return "\n".join(rows)
 
@@ -112,12 +116,12 @@ def keytable():
     spec = [("only_PHQ", "only_OWN_LIWC", "PHQ $-$ LIWC", 1), ("only_PHQ", "only_LSM", "PHQ $-$ LSM (counts)", 1),
             ("only_PHQ", "only_LSMX_no_par", "PHQ $-$ LSM alignment", 1),
             ("lean2_without_RE", "only_PHQ", "74 feat. $-$ PHQ", 1),
-            ("lean2_without_RE", "lean_without_RE", "74 feat. $-$ PHQ + LIWC + LSM scores", 1),
-            ("ft_logit", "mental_emb", "Adapter $-$ frozen encoder", 1), ("ft_logit", "tfidf_lr", "Adapter $-$ TF-IDF", 1),
+            ("lean2_without_RE", "lean_without_RE", "74 feat. $-$ PHQ+3 LIWC+4 LSM", 1),
+            ("ft_logit", "mental_emb", "Adapter $-$ frozen", 1), ("ft_logit", "tfidf_lr", "Adapter $-$ TF-IDF", 1),
             ("lean2_without_RE", "ft_logit", "Adapter $-$ 74 feat.", -1)]
     for a, b, label, sign in spec:
         r = pairs[(pairs.A == a) & (pairs.B == b)].iloc[0]
-        cells = [f"{sign * r['d_' + m]:+.3f} ({pval(r['p_' + m + '_holm'])})" for m in ("roc", "pr", "f1")]
+        cells = [sd(sign * r['d_' + m]).replace("0.", ".") + f" ({pval(r['p_' + m + '_holm'])})" for m in ("roc", "pr", "f1")]
         rows.append(f"{label} & " + " & ".join(cells) + " \\\\")
     rows.append(r"\bottomrule")
     return "\n".join(rows)
@@ -131,16 +135,17 @@ def lengthtable():
     def lab(b):
         return b.replace(">=", "$\\geq$").replace("-", "--") + f" ({int(n.loc[b, 'n_depressed'])}/{int(n.loc[b, 'n_control'])})"
 
-    rows = [r"\toprule", "Posts per user & " + " & ".join(lab(b) for b in bins) + " \\\\", r"\midrule"]
+    rows = [r"\toprule", "Posts & " + " & ".join(lab(b) for b in bins) + " \\\\", r"\midrule"]
     for c in ["only_PHQ", "only_OWN_LIWC", "only_LSM", "only_LSMX_no_par", "only_BEHAVIOR", "lean_PHQ_plus_LIWC", "mental_emb",
               "ft_logit", "tfidf_lr"]:
         x = d[d.config == c].set_index("posts")
-        rows.append(f"{SHORT[c]} & " + " & ".join(f"{f3(x.loc[b, 'recall'])} ({f3(x.loc[b, 'false_alarm_rate'])})" for b in bins) + " \\\\")
+        name = {"mental_emb": "Frozen encoder", "ft_logit": "Adapter"}.get(c, SHORT[c])
+        rows.append(f"{name} & " + " & ".join(f"{f3(x.loc[b, 'recall'])} ({f3(x.loc[b, 'false_alarm_rate'])})" for b in bins) + " \\\\")
     rows.append(r"\bottomrule")
     return "\n".join(rows)
 
 
-SPECS = {"tab_results": "lrccccc", "tab_early": "lccccc", "tab_errors": "lccccccrr", "tab_pairs": "llrcccrccrcc", "tab_key": "lccc", "tab_length": "lccc"}
+SPECS = {"tab_results": "lrccccc", "tab_early": "lccccc", "tab_errors": "lccccccccc", "tab_pairs": "llrcccrccrcc", "tab_key": "lccc", "tab_length": "lccc"}
 
 
 if __name__ == "__main__":
