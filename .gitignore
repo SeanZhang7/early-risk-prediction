@@ -46,3 +46,9 @@ __pycache__/
 /data-processing-copy.ipynb
 /docs/SYSTEM_REPORT.md
 /docs/SYSTEM_REPORT_EN.html
+
+# LaTeX build files of the paper
+/paper/main.aux
+/paper/main.bbl
+/paper/main.blg
+/paper/main.out
