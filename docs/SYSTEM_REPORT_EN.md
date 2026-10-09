@@ -17,9 +17,10 @@
 7. Why the performance is lower than in the old README
 8. Experiments and ablations
 9. Feature selection and recommended configuration
-10. Comparison with MentalRoBERTa (frozen and adapter fine-tuned), a bag-of-words baseline and repeated cross-validation
+10. Repeated cross-validation: MentalRoBERTa and bag-of-words baselines, significance tests, error analysis and feature groups
 11. Limitations, risks and open work
 12. Reproduction and code layout
+13. Paper plan and outline
 - Appendix A. All experiment results
 - Appendix B. Audit of the old pipeline
 
@@ -494,7 +495,7 @@ A further simplification that has **not been run**: `lean3` = PHQ + 3 LIWC + `ls
 
 ---
 
-## 10. Comparison with MentalRoBERTa (frozen and adapter fine-tuned), a bag-of-words baseline and repeated cross-validation
+## 10. Repeated cross-validation: MentalRoBERTa and bag-of-words baselines, significance tests, error analysis and feature groups
 
 Two ways of using MentalRoBERTa are compared with our feature sets, **always with exactly the same sequence model, 5-fold CV, OOF decision rule and single test evaluation as every other experiment**, so that only the input features differ.
 
@@ -840,8 +841,8 @@ The sequence model re-encodes the whole history for every new post (no KV cache)
 - The `lean3` experiment (further simplification).
 - Computing cost: measured in Section 10.4; not yet measured are the one-off offline extraction time of the whole dataset, the fine-tuning time of the RE models, and a smaller PHQ sentence encoder.
 - Aligning the online client with the new pipeline (the old client uses the legacy 99-dimensional feature semantics).
-- Rewriting the README (the existing one is outdated: it mentions `merge_data.ipynb`, `environment.yaml` and "Retrospective Encoder").
-- Git commit, token and history clean-up; deleting `Archive/` (≈8.5 GB of old notebooks and results) once confirmed.
+- A second annotator for the error categories (Section 10.6, 10.7); leave-one-group-out cross-validation (`without_X`); more adapter seeds; a second dataset (Section 13.7).
+- Delete `Archive/` (about 8.5 GB of old notebooks and results) once confirmed; push the local commits.
 
 ---
 
@@ -871,8 +872,10 @@ nohup conda run -n hongyi python -u run_experiments.py lean2 lean only_PHQ all -
 conda run -n hongyi python -u cv_ft.py --repeat 0 --outer 0 --device cuda:0
 nohup conda run -n hongyi python -u cv_all.py --repeats 3 --shard 0 3 --device cuda:0 > Results/v2/cv_0.log 2>&1 &   # shards 0, 1, 2
 nohup conda run -n hongyi python -u cv_tfidf.py --repeats 3 > Results/v2/cv_tfidf.log 2>&1 &
+conda run -n hongyi python -u cv_all.py --configs context_only only_SIM only_LSM only_OWN_LIWC only_BEHAVIOR only_LSMX_no_par --repeats 3 --shard 0 1 --device cuda:0   # single feature groups (Section 10.8)
 conda run -n hongyi python cv_significance.py --repeats 3   # -> models/v2/cv_all/{summary,pairs}.csv
-conda run -n hongyi python error_analysis.py   # error analysis of Section 10.6
+conda run -n hongyi python error_analysis.py   # error analysis of Section 10.6; add a model name for Section 10.7
+conda run -n hongyi python feature_group_analysis.py   # curves, delays and error profiles of Section 10.8
 
 # 5) Summary: ex.seed_summary(P, [names], [42, 43, 44]) in Develop/Train_and_evaluate.ipynb
 # 6) Figures: conda run -n hongyi python docs/make_figures.py
@@ -900,6 +903,7 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `cv_tfidf.py` | TF-IDF logistic-regression baseline in the same cross-validation |
 | `cv_significance.py` | Pooled metrics, bootstrap intervals, paired tests (Holm, Nadeau–Bengio, DeLong, McNemar) |
 | `error_analysis.py` | False positives and negatives of the cross-validation, self-report rule baseline |
+| `feature_group_analysis.py` | AUC after n posts, detection delay and error profile of each feature group |
 | `docs/make_figures.py` | Figures of this report |
 | `data-processing.ipynb`, `Develop/Train_and_evaluate.ipynb` | Thin notebooks |
 | `tests/` | 5 test files (currently passing: 13 + 7 + 9 + 17 + 12) |
@@ -913,6 +917,92 @@ conda run -n hongyi python tests/test_sequence.py
 conda run -n hongyi python tests/test_cv.py
 ```
 They cover: prefix invariance, independence of input order, formulas of running means and `log_gap`, LSM/LSMX formulas, RE folds being user-disjoint and stratified, pipeline assembly on synthetic data, alignment of embeddings by `row_id`, clipping in the standardiser, the sequence model and the evaluation functions.
+
+## 13. Paper plan and outline (8-page long paper)
+
+### 13.1 Positioning
+
+- **Direction.** An analysis paper, not a system paper: *what do linguistic feature groups contribute to early depression detection, and how do they fail?* The evidence is a leak-free, repeated cross-validation over all 891 users of eRisk 2025 Task 2 (102 depressed), with paired significance tests, an earliness analysis and an error analysis.
+- **Working title.** *What Do Linguistic Feature Groups Contribute to Early Depression Detection? A Repeated Cross-Validation and Error Analysis on Reddit Users.*
+- **Contribution types.** Primary: Type 3b (Empirical Results). Secondary: Type 6 (Evaluation Methods: repeated cross-validation with a nested decision rule, family-wise significance tests, earliness curves). Type 5 (Software / Systems) only as a minor item, because the repository is research code and the data and LIWC dictionaries cannot be released.
+- **Venue and length.** A long paper (8 pages plus references) for a workshop on language and mental health or on early risk detection; the material is too thin on novelty and datasets for a main-conference long paper (one dataset, 102 positives, no new method).
+- **Research questions.** RQ1: which feature groups carry signal beyond post position and volume? RQ2: how early does each group detect? RQ3: do features beyond PHQ-9 similarity, or a fine-tuned encoder, add anything? RQ4: which users does each group get wrong, and why?
+
+### 13.2 Abstract (draft, about 180 words)
+
+Early depression detection systems are usually reported on a single train/test split, so the contribution of individual linguistic features and the kinds of users they fail on remain unclear. We evaluate PHQ-9 item similarity, LIWC categories, language style matching, cosine similarity to the parent text and posting behaviour, each alone and in combination, with a causal Transformer over per-post features, using 5×3 repeated cross-validation over 891 Reddit users (102 depressed) of eRisk 2025 Task 2, a nested decision rule and family-wise paired tests. PHQ-9 similarity is the strongest single group (ROC 0.952, PR 0.742) and significantly better than LIWC and style matching; features beyond it add no demonstrable gain, and post position and volume alone already reach ROC 0.662. Text groups rank users after a single post, whereas style-matching features need several posts. An adapter fine-tuned MentalRoBERTa is best overall (ROC 0.963) but not significantly better than hand-crafted features after correction. Error analysis shows that stronger groups miss users whose evidence is diluted in long histories, and that semantic features flag users who write about depression without being labelled depressed.
+
+### 13.3 Outline, section by section
+
+**1 Introduction (0.75 page).**
+- Early risk detection in eRisk: users read post by post, alarm when the probability stays above a threshold for k posts; evaluation with latency-weighted F1.
+- Gap: feature-based and neural systems are compared on single splits with few positives; the roles of individual feature groups, and the length confound (depressed users write more), are rarely isolated; errors are rarely analysed.
+- Contributions (three bullets): (i) a leak-free repeated cross-validation protocol with paired tests; (ii) the contribution and the earliness of each feature group, with a position/volume control; (iii) an error analysis by feature group and a comparison with a fine-tuned encoder and a bag-of-words baseline.
+
+**2 Related work (0.5 page).** eRisk early detection tasks and the latency metric; hand-crafted psycholinguistic features (PHQ-9 items, LIWC, language style matching); mental-health encoders and adapters; evaluation practice (repeated cross-validation, corrected resampled t-test, DeLong); self-report-labelled Reddit corpora and their known label issues. (Citations to be verified: Losada and Crestani on eRisk; Kroenke et al. on PHQ-9; Ireland and Pennebaker on style matching; Ji et al. on MentalRoBERTa; Pfeiffer et al. on AdapterHub; Nadeau and Bengio; DeLong et al.; Holm; Yates et al. on RSDD.)
+
+**3 Data and evaluation protocol (1 page).**
+- Data: 891 users (102 depressed, 11.4 %), 343,153 posts without truncation, about 60 % of the rows with the parent text; depressed users write more (median 508 against 237 posts in the training users). Labels come from self-reported diagnoses; no text is quoted (data-use agreement). *Table 1: data statistics.*
+- Task and decision rule: probability after every post, alarm when it is at least `th` for `k` consecutive posts; `(th, k)` is chosen only on out-of-fold probabilities of the training users of each outer fold; F_latency with the eRisk constant 0.0078.
+- Protocol: 5-fold stratified cross-validation repeated 3 times over all users; in every outer fold the model is trained as in the single-split pipeline (inner 5-fold, early stopping); every user is predicted once per repeat by a model that never saw it; identical splits and seeds for all configurations; fine-tuned logits and TF-IDF are refitted inside every outer fold; RE is excluded (Section 13.6).
+- Metrics: ROC and PR on the maximum probability, AUC after n posts, precision, recall, F1, F_latency, alarm delay; means over repeats with 95 % stratified bootstrap intervals over users (same draws for all configurations).
+- Tests: paired bootstrap difference with Holm adjustment inside pre-specified families (references; baselines; feature groups); corrected resampled t-test, DeLong and McNemar in the supplement.
+
+**4 Features, model and comparison systems (0.75 page).**
+- Groups (single-group runs add three context features: `post_index`, `is_comment`, `has_parent`): PHQ (9 item similarities to PHQ-9 archetype sentences, score, running maxima), LIWC (15 own-text categories), LSM (original count-based, and rate-based alignment `lsmr_*`/`dlsm_*`), cosine similarity to the parent, behaviour (length, night posting, gap), context only (control).
+- Model: causal Transformer (hidden 256, 4 heads, 3 layers, 4.0 M parameters) over per-post features with history features (running mean, max/min, rolling standard deviation).
+- References: frozen MentalRoBERTa embeddings; adapter fine-tuned MentalRoBERTa (cross-fitted logit); TF-IDF logistic regression; PHQ + 3 LIWC and `lean` as compact hand-crafted sets.
+
+**5 Results (about 4 pages).**
+- *5.1 RQ1, which groups carry signal.* *Table 2* (Table 10.8a) and *Table 3* (selected rows of Table 10.8b). PHQ ROC 0.952 and PR 0.742 > LIWC 0.926 and 0.660 > LSM (counts) 0.874 and 0.556 > LSM alignment 0.851 and 0.478 > behaviour 0.808 and 0.375 > cosine similarity 0.727 and 0.303; context only 0.662 and 0.333. PHQ against LIWC: ΔPR +0.082 (Holm p = 0.024); against both LSM groups ΔPR +0.186 and +0.264 (p = 0.004). Every group is above the context control in ROC; in PR behaviour and cosine similarity are not.
+- *5.2 RQ2, how early.* *Figure 1* (Figure 14): AUC after n posts and the share of depressed and control users flagged within n posts. After one post: LIWC 0.763, PHQ 0.748, behaviour 0.702, LSM groups and cosine similarity 0.53–0.56, adapter 0.803, TF-IDF 0.806. At 10 posts PHQ 0.875, LIWC 0.846; at 100 posts PHQ 0.922 against 0.936 for the adapter. *Table 4* (Table 10.8c): median delay and share of detected users flagged within 10 posts (LIWC 44 %, PHQ 38 %, LSM counts 6 %; PHQ + 3 LIWC 49 %; TF-IDF 76 %, frozen encoder 70 %, adapter 54 %).
+- *5.3 RQ3, beyond PHQ.* *Table 5* (selected rows of Tables 10.5a and 10.5b): `lean2`, `lean`, `only_PHQ` and PHQ + 3 LIWC are indistinguishable (|ΔPR| ≤ 0.010; `lean` slightly better than `lean2`, ΔROC +0.005, Holm p = 0.042); the adapter is best (ROC 0.963, PR 0.792) and significantly better than the frozen encoder (ΔPR +0.065, p = 0.045) and TF-IDF (ΔPR +0.111, p = 0.002) but not significantly better than the hand-crafted set after Holm (ΔPR +0.039, p = 0.81; ΔF1 +0.065, p = 0.088). TF-IDF ranks worse (ROC 0.914) but alarms earliest.
+- *5.4 RQ4, errors.* *Figure 2* (Figure 15) and *Table 6* (Table 10.8d). Error sets differ between groups (false-negative overlap, Jaccard: PHQ and PHQ + 3 LIWC 0.88, PHQ and LIWC 0.56, PHQ and LSM alignment 0.27; false positives 0.07–0.26 between groups). Misses of the strong groups are users with long histories and diluted evidence (median 622 posts, 5 % of posts with mental-health terms); false alarms of the semantic groups are users who write about depression (18–23 % match a self-report pattern against 3.4 % of all controls); false alarms of the behaviour group are heavy posters (median 660 posts against 207). Indicative, from one reader and without a second annotator: categories of the false alarms of the fine-tuned model and of `lean2` (own depression, other conditions, physical illness, everyday distress, supportive commenters) go to the appendix. Without an explicit self-report phrase (19 depressed users) every configuration loses recall (PHQ 0.81 to 0.53, adapter 0.86 to 0.58, LIWC 0.78 to 0.32).
+- *Reference row.* A rule without learning that alarms at the first self-report phrase has F1 0.783 and median delay 55 posts (adapter: F1 0.788, median delay 9.5); report it as one row of Table 5 so that readers can judge what the labels capture.
+
+**6 Discussion, limitations and ethics (0.75 page).** See Sections 13.5 and 13.6.
+
+**Appendix.** Full result tables (Appendix A), single-split results and the optimism of the single split (`lean2` test PR 0.831, pooled 0.753), hyper-parameters, compute cost (Section 10.4), error categories from the manual reading, reproduction details.
+
+### 13.4 Claims and the evidence for them
+
+| # | Claim | Evidence | Strength |
+|---|---|---|---|
+| 1 | PHQ-9 similarity is the strongest single group | Tables 10.8a, 10.8b; ΔPR +0.082 over LIWC, +0.19 to +0.26 over LSM | Significant after Holm |
+| 2 | Post position and volume alone are informative (ROC 0.662), so group results need this control | `context_only` | Descriptive, large effect |
+| 3 | Style-matching features add no demonstrable gain beyond PHQ | `lean2` against `only_PHQ`, `lean`; LSM groups weak alone | Non-significant; not proof of equality |
+| 4 | Text groups rank users after one post; style-matching groups need several posts | Figure 14, Table 10.8c | Descriptive, intervals in the figure |
+| 5 | The adapter fine-tuned encoder is best and clearly better than frozen embeddings and TF-IDF | Table 10.5b | Significant after Holm |
+| 6 | Hand-crafted and fine-tuned approaches are not significantly different after correction | Table 10.5b | Non-significant |
+| 7 | Groups err on different users; misses are diluted evidence, false alarms follow vocabulary or posting volume | Table 10.8d, Figure 15, Sections 10.6 and 10.7 | Descriptive; categories from one reader |
+| 8 | A single split overstates performance | Section 10.5 | Descriptive |
+
+### 13.5 Claims that must not be made
+
+- That the hand-crafted system beats a fine-tuned encoder (not significant), or that RE is redundant in the cross-validation (it was tested only on the single split).
+- Any generalisation beyond this dataset, or to clinical use, screening or diagnosis.
+- That a difference in alarm delay between groups is significant (not tested).
+- That the models detect depression "before disclosure": the labels come from self-reported diagnoses and the self-report statements stay in the text; the paper should say that performance reflects this labelling, report the self-report rule as a reference and describe the results as detection of users who have disclosed, not as prediction without disclosure.
+
+### 13.6 Limitations and ethics (draft points)
+
+- 102 depressed users; intervals about ±0.07 in PR; non-significant is not equal.
+- One dataset; labels from self-reported diagnoses; control users are not verified as non-depressed (some describe their own depression).
+- RE not nested and therefore not in the cross-validation; hyper-parameters and the feature selection were made on users that later enter the cross-validation; one sequence-model seed and one adapter run per outer fold; thresholds are chosen on single-model out-of-fold probabilities but applied to model averages (threshold-based metrics may be slightly shifted).
+- Error categories from one reader who read the top posts of each user; keyword patterns are not validated.
+- Ethics: data-use agreement and no quotation of posts; research use only; the system must not be used to screen or label people; risk of false positives and of exposing users; code released without data and without the LIWC dictionary.
+
+### 13.7 Remaining work before submission (in order of value)
+
+1. A second annotator for (a sample of) the error categories, with agreement; otherwise keep the categories in the appendix.
+2. Leave-one-group-out cross-validation (`without_X`), to show what each group adds when the others are present.
+3. More adapter seeds for the fine-tuned reference.
+4. Related work and a final check of the citations; check the target venue's page limit, template and checklist.
+5. Move the long tables to the appendix and cut the figures to the two that carry the argument (Figures 14 and 15).
+
+### 13.8 If only 4 pages are allowed
+
+Keep: protocol (0.75 page), Table 10.8a with the control, Figure 14, one small table that combines delay and error profile, three limitation lines. Drop: RQ3 details (one sentence for the fine-tuned and TF-IDF references), manual error categories, the appendix material (point to the repository).
 
 ---
 
