@@ -1,0 +1,5 @@
+model,group,disclosure_posts,users,median_ft_logit_pct,median_before_over_th,median_at_over_th,median_max_after_over_th,share_reaching_th_within_window,median_rel_position
+74feat,FN,69,11,0.961,0.488,0.700,0.855,0.232,0.393
+74feat,TP,1806,71,0.948,1.104,1.107,1.113,0.976,0.408
+adapter,FN,147,16,0.973,0.520,0.598,0.705,0.204,0.461
+adapter,TP,1776,76,0.950,1.076,1.079,1.084,0.959,0.407

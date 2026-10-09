@@ -1,0 +1,3 @@
+model,alarm,never reached threshold,"reached threshold, run shorter than k"
+74feat,1,9,3
+adapter,0,15,5
