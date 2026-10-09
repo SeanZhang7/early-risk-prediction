@@ -105,6 +105,7 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `cv_splits.py`, `cv_ft.py`, `cv_all.py`, `cv_tfidf.py`, `cv_significance.py` | repeated cross-validation, TF-IDF baseline, paired tests |
 | `error_analysis.py` | false positives and negatives, self-report rule baseline |
 | `feature_group_analysis.py` | AUC after n posts, detection delay and error profile of each feature group |
+| `annotation_material.py` | Blind reading material for the manual annotation of misclassified users (local, git-ignored output) |
 | `paper/` | ACL-format paper (`main.tex`, `refs.bib`) and the scripts that generate its tables and figures; build with `tectonic -X compile main.tex` |
 | `benchmark.py` | per-post inference cost (`docs/benchmark_results.json`) |
 | `docs/` | `SYSTEM_REPORT_EN.md` (full report, with PDF), figure and PDF scripts |
