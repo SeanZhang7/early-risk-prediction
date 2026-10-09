@@ -1,0 +1,18 @@
+\begin{tabular}{lccccc}
+\toprule
+Configuration & AUC@1 & AUC@10 & Flagged $\leq$10 & Precision & Median delay [Q1--Q3] \\
+\midrule
+PHQ & .748 & .875 & .281 & .699 & 14.0 [10--46] \\
+LIWC & .763 & .847 & .307 & .613 & 14.0 [6--45] \\
+LSM (counts) & .559 & .764 & .039 & .517 & 40.0 [17--96] \\
+LSM alignment & .532 & .745 & .193 & .421 & 22.8 [8--74] \\
+Behaviour & .702 & .745 & .226 & .365 & 14.2 [6--120] \\
+Cosine sim. & .556 & .621 & .281 & .163 & 17.0 [9--54] \\
+Context only & .481 & .620 & .422 & .137 & 12.5 [4--52] \\
+PHQ + 3 LIWC & .774 & .891 & .372 & .700 & 10.3 [5--35] \\
+MentalRoBERTa frozen & .824 & .889 & .516 & .722 & 8.3 [5--12] \\
+MentalRoBERTa adapter & .803 & .878 & .425 & .783 & 9.5 [5--32] \\
+TF-IDF & .806 & .902 & .516 & .749 & 5.7 [5--10] \\
+First self-report phrase & -- & .578 & -- & .754 & 55 [--] \\
+\bottomrule
+\end{tabular}

@@ -80,7 +80,7 @@ python -u cv_all.py --repeats 3 --shard 0 1 --device cuda:0
 python -u cv_tfidf.py --repeats 3
 python -u cv_all.py --configs context_only only_SIM only_LSM only_OWN_LIWC only_BEHAVIOR only_LSMX_no_par --repeats 3 --shard 0 1 --device cuda:0  # single feature groups
 python cv_significance.py --repeats 3
-python feature_group_analysis.py                             # curves, delays and error profiles of the feature groups
+python feature_group_analysis.py                             # curves, delays, error profiles and recall by history length of the feature groups
 python error_analysis.py                                     # aggregates to docs/figures/, excerpts stay in Results/
 python error_analysis.py lean2_without_RE                    # same for another model (outputs get a suffix)
 
@@ -102,6 +102,7 @@ Seed 42 keeps the plain experiment name; other seeds are stored as `<name>_seed<
 | `cv_splits.py`, `cv_ft.py`, `cv_all.py`, `cv_tfidf.py`, `cv_significance.py` | repeated cross-validation, TF-IDF baseline, paired tests |
 | `error_analysis.py` | false positives and negatives, self-report rule baseline |
 | `feature_group_analysis.py` | AUC after n posts, detection delay and error profile of each feature group |
+| `paper/` | ACL-format paper (`main.tex`, `refs.bib`) and the scripts that generate its tables and figures; build with `tectonic -X compile main.tex` |
 | `benchmark.py` | per-post inference cost (`docs/benchmark_results.json`) |
 | `docs/` | `SYSTEM_REPORT_EN.md` (full report, with PDF), figure and PDF scripts |
 | `tests/` | synthetic-data checks |

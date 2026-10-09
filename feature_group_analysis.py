@@ -120,7 +120,24 @@ def error_profile(P, names, all_runs):
         sets = {n: set(outcome.index[outcome[n] == kind]) for n in names}
         overlaps[kind] = pd.DataFrame([[len(sets[a] & sets[b]) / max(len(sets[a] | sets[b]), 1) for b in names]
                                        for a in names], index=names, columns=names)
-    return pd.DataFrame(rows), overlaps, outcome
+    return pd.DataFrame(rows), overlaps, outcome, users
+
+
+BINS = [(1, 99, "<100"), (100, 499, "100-499"), (500, 10 ** 9, ">=500")]
+
+
+def length_bins(outcome, users):
+    """Recall of the depressed and false-alarm rate of the control users by number of posts per user."""
+    rows = []
+    for lo, hi, label in BINS:
+        idx = users.index[(users.n_posts >= lo) & (users.n_posts <= hi)]
+        for name in outcome.columns:
+            o = outcome.loc[idx, name]
+            dep, ctl = o.isin(["TP", "FN"]), o.isin(["TN", "FP"])
+            rows.append({"config": name, "posts": label, "n_depressed": int(dep.sum()), "n_control": int(ctl.sum()),
+                         "recall": float((o[dep] == "TP").mean()) if dep.any() else np.nan,
+                         "false_alarm_rate": float((o[ctl] == "FP").mean()) if ctl.any() else np.nan})
+    return pd.DataFrame(rows)
 
 
 def figure_curves(cur, path, labels):
@@ -188,7 +205,8 @@ def main():
     cur.to_csv(out / "groups_curves.csv", index=False, float_format="%.4f")
     dt = delay_table(data)
     dt.to_csv(out / "groups_delay.csv", index=False, float_format="%.4g")
-    profile, overlaps, _ = error_profile(P, names, all_runs)
+    profile, overlaps, outcome, users = error_profile(P, names, all_runs)
+    length_bins(outcome, users).to_csv(out / "groups_length_bins.csv", index=False, float_format="%.4g")
     profile.to_csv(out / "groups_errors.csv", index=False, float_format="%.4g")
     for kind, m in overlaps.items():
         m.to_csv(out / f"groups_overlap_{kind.lower()}.csv", float_format="%.3f")

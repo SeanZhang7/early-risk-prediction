@@ -1,0 +1,23 @@
+\begin{tabular}{lrccccc}
+\toprule
+Configuration & \#feat. & ROC-AUC & PR-AUC & AUC@10 & F1 & F$_{\mathrm{lat}}$ \\
+\midrule
+\multicolumn{7}{l}{\textit{Single feature groups (plus three context features)}} \\
+PHQ & 28 & .952 [.935, .968] & .742 [.677, .815] & .875 & .718 & .681 \\
+LIWC (15 categories) & 33 & .926 [.901, .949] & .660 [.586, .745] & .847 & .653 & .620 \\
+LSM (counts) & 73 & .874 [.837, .909] & .556 [.476, .641] & .764 & .564 & .479 \\
+LSM alignment & 43 & .851 [.811, .886] & .478 [.403, .568] & .745 & .507 & .464 \\
+Behaviour & 9 & .808 [.763, .849] & .375 [.314, .458] & .745 & .438 & .416 \\
+Cosine similarity & 10 & .727 [.676, .778] & .303 [.244, .381] & .621 & .272 & .255 \\
+Context only (control) & 3 & .662 [.607, .718] & .333 [.259, .419] & .620 & .236 & .225 \\
+\midrule
+\multicolumn{7}{l}{\textit{Combinations and reference systems}} \\
+PHQ + 3 LIWC categories & 34 & .952 [.934, .968] & .749 [.679, .820] & .891 & .732 & .706 \\
+PHQ + 3 LIWC + 4 LSM scores & 42 & .958 [.942, .974] & .777 [.710, .846] & .892 & .751 & .713 \\
+PHQ + 3 LIWC + LSM alignment & 74 & .953 [.934, .970] & .753 [.689, .822] & .883 & .723 & .680 \\
+MentalRoBERTa, frozen & 771 & .938 [.914, .960] & .726 [.659, .798] & .889 & .729 & .708 \\
+MentalRoBERTa, adapter-tuned & 4 & .963 [.947, .977] & .792 [.732, .852] & .878 & .788 & .762 \\
+TF-IDF + logistic regression & -- & .914 [.884, .940] & .680 [.601, .759] & .902 & .715 & .702 \\
+First self-report phrase (no learning) & -- & .897 & .754 & .578 & .783 & .621 \\
+\bottomrule
+\end{tabular}
