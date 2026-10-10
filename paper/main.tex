@@ -24,7 +24,7 @@ A Repeated Cross-Validation and Error Analysis on Reddit Users}
 \begin{abstract}
 Early depression detection systems are usually compared on a single split with few positive users, so it remains unclear what individual linguistic features contribute, how early they help, and which users they fail on.
 We analyse feature groups (PHQ-9 item similarity, LIWC categories, language style matching, parent-text similarity, posting behaviour) with a shared causal Transformer, using 5$\times$3 repeated cross-validation over 891 Reddit users (102 labelled depressed), alarm rules chosen only on training users, and family-wise corrected paired tests.
-PHQ-9 similarity is the strongest single group (ROC-AUC 0.952, PR-AUC 0.742) and is significantly better than both style-matching variants; its advantage over LIWC is smaller and less robust across tests, and groups added to it give no significant gain.
+PHQ-9 similarity is the strongest single group (ROC-AUC 0.952, PR-AUC 0.742) and is significantly better than both style-matching variants; its advantage over LIWC is smaller and less robust across tests, and a 74-feature combination built on it is not significantly better.
 A control that knows only post position and volume already reaches ROC-AUC 0.662.
 Text-based groups rank users after one post, whereas style matching needs several.
 An adapter-tuned MentalRoBERTa has the best scores (ROC-AUC 0.963) and is better than TF-IDF and, more narrowly, frozen embeddings, but its advantage over a 74-feature combination is not significant after correction.
@@ -118,8 +118,10 @@ We also report ROC-AUC and PR-AUC of the maximum probability of a user, AUC afte
 \section{Features and Models}
 
 \paragraph{Per-post feature groups.}
-Every group is described by features of the current post plus history features (running maximum and minimum, their difference, change from the previous post, rolling standard deviation over 5 posts, running mean), standardised with training statistics and clipped to $\pm10$.
-\textbf{PHQ} (28 features including context): cosine similarity between a post and nine first-person archetype sentences, one per PHQ-9 item (Appendix~\ref{app:phq}), computed with mxbai-embed-large-v1 \citep{lee2024mxbai,li2023angle} following \citet{lahnala2025unifying}, their mean, and running maxima per item.
+Every group is described by features of the current post and by history features computed within each user.
+The PHQ total, the cosine similarity and the ten LSM scores have a running maximum and minimum, their difference, the change from the previous post, a rolling standard deviation over 5 posts and a running mean; the nine PHQ items have a running maximum; LIWC, behaviour and alignment features have the current value and a running mean.
+Features are standardised with training statistics and clipped to $\pm10$.
+\textbf{PHQ} (28 features): cosine similarity between a post and nine first-person archetype sentences, one per PHQ-9 item (Appendix~\ref{app:phq}), computed with mxbai-embed-large-v1 \citep{lee2024mxbai,li2023angle} following \citet{lahnala2025unifying}, their mean, and running maxima per item.
 These are similarities inspired by symptoms, not observed PHQ responses or validated estimates of severity.
 \textbf{LIWC} (33): rates of 15 categories in the post's own text (e.g.\ sadness, anxiety, health, negative emotion, first-person singular) from LIWC2015 \citep{pennebaker2015liwc}.
 \textbf{LSM} (73): language style matching \citep{ireland2010language} between a comment and its parent on ten LIWC-based group scores computed on word counts, as in our initial pipeline (defined below).
@@ -127,7 +129,7 @@ These are similarities inspired by symptoms, not observed PHQ responses or valid
 \textbf{Cosine similarity} (10): similarity of sentence embeddings (all-MiniLM-L6-v2; \citealp{reimers-gurevych-2019-sentence}) between a comment and its parent.
 \textbf{Behaviour} (9): log word count, posting between 00:00 and 05:59 UTC, log time since the previous post.
 LSM, alignment and cosine similarity exist only for comments whose parent text is known (about 60\% of the rows).
-In every single-group run we add three \textbf{context} features: log post index, comment indicator and parent-known indicator.
+In every single-group run we add three \textbf{context} features: log post index, comment indicator and parent-known indicator; the feature counts above include them.
 \textbf{Context only} uses just these three and is our control for position and volume.
 
 \paragraph{Style matching.}
@@ -199,9 +201,9 @@ The differences in ROC-AUC between PHQ and the other groups, and between each gr
 \label{tab:early}
 \end{table*}
 
-After a single post (Figure~\ref{fig:curves}, left; Table~\ref{tab:early}), LIWC (AUC .763) and PHQ (.748) already rank users, as do behaviour (.702) and the two references that read the post text (.80--.82), whereas LSM, LSM alignment and cosine similarity are at .53--.56: they exist only for comments with a known parent and need several posts to accumulate.
+After a single post (Figure~\ref{fig:curves}, left; Table~\ref{tab:early}), LIWC (AUC .763) and PHQ (.748) already rank users, as do behaviour (.702) and the three references that read the post text (.80--.82), whereas LSM, LSM alignment and cosine similarity are at .53--.56: they exist only for comments with a known parent and need several posts to accumulate.
 At 10 posts PHQ reaches .875 and LIWC .847; at 100 posts PHQ (.922) is close to the adapter-tuned encoder (.936).
-Among the informative groups, LIWC alarms earliest (median delay 14 posts, 44\% of its detected users within 10 posts) but is less precise than PHQ (.613 against .699); LSM counts is slowest (median 40 posts).
+Among the informative groups, LIWC and PHQ have the same median delay (14 posts) and LIWC flags slightly more depressed users within 10 posts (.31 against .28 of all depressed users), but LIWC is less precise than PHQ (.613 against .699); LSM counts is slowest (median 40 posts).
 The combination of PHQ and three LIWC categories alarms earlier than either (median 10.3 posts) at PHQ's precision; this comparison was not pre-specified.
 TF-IDF and the encoders alarm earliest (median 5.7 to 9.5 posts).
 Among the pre-specified tests of the median delay, TF-IDF alarms earlier than the adapter, the frozen encoder, PHQ and the 74-feature set (by 3.8, 2.7, 8.3 and 10.7 posts; Holm $p=.002$), LSM counts later than PHQ (26 posts; $p=.004$), and PHQ and LIWC do not differ (Holm $p=1$).
@@ -217,8 +219,9 @@ After 500 posts the false-alarm rate on control users is under 6\% for PHQ and L
 \label{tab:key}
 \end{table}
 
-Adding three LIWC categories to PHQ, additionally four LSM scores, or the LSM alignment features (74 features in total) does not change ROC-AUC or PR-AUC significantly relative to PHQ alone (74 features against PHQ: $\Delta$ROC $+.001$, $\Delta$PR $+.010$, Holm $p=1$; Tables~\ref{tab:results} and~\ref{tab:key}).
-The four-score variant is slightly better than the alignment variant in ROC-AUC (Holm $p=.042$, not significant under Nadeau--Bengio).
+Of the combinations built on PHQ, only the 74-feature set (PHQ, three LIWC categories, LSM alignment) was tested against PHQ alone: it does not change ROC-AUC or PR-AUC significantly ($\Delta$ROC $+.001$, $\Delta$PR $+.010$, Holm $p=1$), and it does not differ from PHQ with three LIWC categories ($\Delta$PR $+.004$; Tables~\ref{tab:results} and~\ref{tab:key}).
+A variant with four count-based LSM scores instead of the alignment features has the highest PR-AUC among the hand-crafted sets (.777 against .742 for PHQ), but it was not tested against PHQ, so we make no claim about it.
+It is slightly better than the alignment variant in ROC-AUC (Holm $p=.042$, not significant under Nadeau--Bengio).
 The adapter-tuned MentalRoBERTa is best overall (ROC-AUC .963, PR-AUC .792, F1 .788).
 It is better than TF-IDF ($\Delta$ROC $+.049$, $\Delta$PR $+.111$, $\Delta$F1 $+.073$; Holm $p\le.004$) and, more narrowly, than frozen embeddings ($+.024$, $+.065$, $+.059$; $p=.004$, $.045$, $.018$; the PR-AUC difference has Nadeau--Bengio $p=.057$).
 Against the 74-feature hand-crafted set the difference is borderline: $\Delta$ROC $+.010$, $\Delta$PR $+.039$, $\Delta$F1 $+.065$, with unadjusted bootstrap $p=.032$, $.135$, $.011$ and Holm $p=.19$, $.81$, $.088$.
@@ -243,7 +246,7 @@ The self-report rule reaches F1 .783, close to the adapter-tuned model (.788), b
 \end{table*}
 
 The groups err on different users (Figure~\ref{fig:errors}).
-The false-negative sets overlap strongly between PHQ and PHQ with LIWC (Jaccard .89, the combination mostly inherits PHQ's misses), moderately between PHQ and LIWC (.56), and little between PHQ and LSM alignment (.27) or the adapter-tuned model (.36); false-positive sets overlap much less (.07 to .26 between groups, .37 between the two LSM variants).
+The false-negative sets overlap strongly between PHQ and PHQ with LIWC (Jaccard .89, the combination mostly inherits PHQ's misses), moderately between PHQ and LIWC (.56), and little between PHQ and LSM alignment (.27) or the adapter-tuned model (.36); false-positive sets overlap much less (.07 to .26 among the five single groups, .37 between the two LSM variants).
 
 \paragraph{False negatives.}
 Users missed by the stronger groups have long histories with sparse evidence: the median is 622 posts for PHQ and LIWC (854 for the adapter), and only 5\% of their posts contain mental-health terms (adapter: 2.8\% against 15.5\% for its true positives, unadjusted $p<.001$).
@@ -258,7 +261,7 @@ Weaker groups also miss users with shorter histories (304 posts for LSM alignmen
 Semantic groups flag control users who write about depression: 23\%, 20\% and 18\% of the false positives of PHQ, LIWC and LSM match the self-report pattern, against 3.4\% of all control users (adapter: 38\%).
 In a blind reading, 10 of the 21 false positives of the adapter-tuned model and 10 of the 34 of the 74-feature set describe their own depression; the others write about another condition, a chronic illness, everyday distress, or support others in mental-health communities (Appendix~\ref{app:errors}).
 Behaviour flags heavy posters (median 660 posts against 182 for its true negatives; 7\% self-reports).
-The alarm is usually raised on an unremarkable post and reflects the accumulated history.
+The alarm is not raised on the user's most depressive-looking post: for 4 of the 20 false positives of the adapter-tuned model that alarm in the first repeat, the alarm post is among the user's top 10\% by adapter score, and it reflects the accumulated history.
 
 \paragraph{History length.}
 Table~\ref{tab:length} splits the users by the number of posts.
@@ -280,7 +283,7 @@ Depressed users without a self-report phrase are harder for every configuration 
 
 Standalone, incremental and early signal lead to different conclusions.
 Style matching improves over the control but not demonstrably over PHQ with LIWC; PHQ leads the single groups in full-history ranking, whereas TF-IDF has the highest AUC@10 among the references; a ranking winner need not be an early-alarm winner.
-PHQ similarity is the strongest and among the earliest signals, and no other group we tested adds a significant gain to it.
+PHQ similarity is the strongest and among the earliest signals, and the 74-feature combination we tested adds no significant gain to it.
 This is consistent with its construction: it scores each post against symptom statements and therefore responds to symptom-like content from the first post on.
 LIWC categories give a coarser lexical version of this signal.
 Style matching and parent similarity are properties of an exchange, are undefined for submissions and for comments without a parent, and need several posts; they also add little to PHQ.
@@ -293,7 +296,7 @@ Because labels are derived from self-reported diagnoses, the results describe th
 
 \section{Conclusion}
 
-In a repeated cross-validation over 891 Reddit users, PHQ-9 item similarity is the strongest single feature group, features beyond it add no significant gain, post position and volume are a necessary control, text-based groups detect from the first post whereas style matching needs several, and an adapter-tuned encoder is best but not significantly better than hand-crafted features after correction.
+In a repeated cross-validation over 891 Reddit users, PHQ-9 item similarity is the strongest single feature group, a 74-feature combination built on it adds no significant gain, post position and volume are a necessary control, text-based groups detect from the first post whereas style matching needs several, and an adapter-tuned encoder is best but not significantly better than hand-crafted features after correction.
 Groups fail on different users, but distinct errors do not guarantee useful fusion: adding the hand-crafted features does not improve the adapter.
 Misses are associated with sparse mental-health evidence in long histories (recall of the text systems falls as histories grow), and false alarms with topic; both are descriptive.
 The results support feature analysis, not a claim of state-of-the-art detection, and they concern users who disclosed a diagnosis.
@@ -342,7 +345,7 @@ We wrote one first-person sentence per PHQ-9 item; the PHQ feature of a post is 
 
 \paragraph{Sequence model and training.}
 Input projection to 256 dimensions, 3 Transformer encoder layers (4 heads, feed-forward width 2048, dropout 0.3), a two-layer head (256$\rightarrow$64$\rightarrow$1) producing one logit per post, no positional encoding (order enters through the causal mask and the post-index feature), at most 30 epochs, patience 5, weight decay 0.01, gradient clipping 1.0, length-bucketed batches of at most 32 users.
-Hyper-parameters (learning rate $3\cdot10^{-5}$, 256$\times$3) were chosen on a 16-configuration grid by out-of-fold PR-AUC on the 712 training users of an earlier fixed split; the spread across the grid is about 0.075 PR-AUC.
+Hyper-parameters (learning rate $3\cdot10^{-5}$, 256$\times$3) were chosen on a 16-configuration grid by out-of-fold PR-AUC on the 712 training users of an earlier fixed split, using an earlier version of the full feature set; the spread across the grid is about 0.075 PR-AUC.
 $(\theta,k)$ is selected by $F_{\mathrm{lat}}$, ties by F1, then shorter delay, then lower threshold.
 
 \paragraph{Adapter.}
@@ -362,7 +365,7 @@ mental-roberta-base is used under CC BY-NC 4.0 for non-commercial research; all-
 Our own code and the archetype sentences will be released with the paper.
 
 \paragraph{Compute.}
-The cross-validation (15 outer folds, 15 configurations) and the adapter runs used two 24\,GB GPUs; the sequence models train in about a minute per outer fold.
+The cross-validation (15 outer folds, 15 configurations) and the adapter runs used two 24\,GB GPUs; the sequence models train in one to two minutes per outer fold.
 
 \section{Paired Tests}
 \label{app:pairs}
@@ -385,7 +388,7 @@ We therefore describe these as suggestive.
 
 The self-report pattern matches first-person statements such as ``I have/had/suffer from/struggle with/deal with/was diagnosed with (up to two words) depression'', ``my depression'', ``I'm depressed'' and ``diagnosed with (up to two words) depression'' (case-insensitive).
 The mental-health vocabulary pattern covers terms such as depression, anxiety, therapy, psychiatric, antidepressant, suicide, bipolar, PTSD and self-harm.
-Both were fixed before the errors were inspected and are not validated; they miss phrasings such as ``I've been depressed'' or ``diagnosed with MDD''.
+Both were written in the first version of the analysis script and not changed afterwards, and are not validated; they miss phrasings such as ``I've been depressed'' or ``diagnosed with MDD''.
 
 \section{Error Categories}
 \label{app:errors}
