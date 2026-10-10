@@ -78,7 +78,7 @@ def fig_errors():
         ax.set_yticks(range(len(order)))
         ax.set_yticklabels([SHORT[c] for c in order])
         ax.set_title("Overlap of false negatives" if kind == "fn" else "Overlap of false positives")
-    fig.colorbar(im, ax=axes[2], fraction=0.046, pad=0.03).set_label("Jaccard index")
+    fig.colorbar(im, ax=list(axes[1:]), fraction=0.025, pad=0.02, aspect=25).set_label("Jaccard index")
     fig.savefig(HERE / "fig_errors.pdf", bbox_inches="tight")
     plt.close(fig)
 
