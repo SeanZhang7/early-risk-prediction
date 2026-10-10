@@ -251,7 +251,7 @@ The false-negative sets overlap strongly between PHQ and PHQ with LIWC (Jaccard 
 \paragraph{False negatives.}
 Users missed by the stronger groups have long histories with sparse evidence: the median is 622 posts for PHQ and LIWC (854 for the adapter), and only 5\% of their posts contain mental-health terms (adapter: 2.8\% against 15.5\% for its true positives, unadjusted $p<.001$).
 The history length itself does not differ significantly between the adapter's false negatives and true positives (854 against 464 posts, $p=.236$), so this is an evidence-density pattern, not a demonstrated effect of length.
-In a blind reading by one author (Appendix~\ref{app:errors}), 18 of the 20 users missed by the adapter-tuned model (12 of the 13 additional misses of the 74-feature set) wrote a first-person statement of a diagnosis or of ongoing depression.
+In a blind reading by one author (Appendix~\ref{app:errors}), 18 of the 20 users missed by the adapter-tuned model (all 13 additional misses of the 74-feature set) wrote a first-person statement of a diagnosis or of ongoing depression.
 Yet 15 of the 20 never reach the threshold, and the other five do not stay above it for $k$ consecutive posts.
 When a missed user's post matches a broadened self-report pattern, that post ranks in the top 3\% of the user's posts by adapter score (median percentile .97, as for true positives, .95), but the sequence probability rises only from 0.52 to 0.60 of the threshold, and reaches the threshold within 20 posts in 20\% of the cases (true positives: 96\%, mostly already above it before the post).
 This suggests that the sequence model does not retain such isolated evidence (we did not test alternative pooling).
@@ -404,8 +404,8 @@ Counts for the adapter-tuned model (21 users) and the 74-feature set (34 users):
 \emph{everyday distress}: 0 and 4;
 \emph{supportive commenters in mental-health communities}: 1 and 4;
 \emph{no clear depression-related content}: 0 and 2.
-For false negatives the annotator recorded whether the user wrote a first-person statement of a diagnosis or ongoing depression: 18 of the 20 users missed by the adapter-tuned model and 12 of the 13 users missed only by the 74-feature set.
-The two ``no'' cases of the adapter (one describes a partner's depression, in a history of 12 posts) and the one of the 74-feature set have no such statement in the shown posts.
+For false negatives the annotator recorded whether the user wrote a first-person statement of a diagnosis or ongoing depression: 18 of the 20 users missed by the adapter-tuned model and all 13 users missed only by the 74-feature set.
+The two ``no'' cases of the adapter (one describes a partner's depression, in a history of 12 posts) have no such statement in the shown posts.
 The mechanism analysis uses a broadened self-report pattern (adding, for example, ``I've been depressed'', ``diagnosed me with depression'', ``MDD'' and ``dysthymia''); for each model it compares the false negatives with the true positives of the same model, with a window of 20 posts after the matching post.
 
 \end{document}
